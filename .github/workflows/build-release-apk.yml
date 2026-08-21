@@ -45,6 +45,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Configure Gradle for the CI runner
+        run: |
+          set -euo pipefail
+          cp android/gradle.properties.template android/gradle.properties
+
       - name: Install JavaScript dependencies
         run: npm ci --no-audit --no-fund
 
