@@ -29,6 +29,9 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import Icon from '../components/Icon';
 import { revokeSettingsAccess } from '../utils/authState';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import WifiDialog from '../components/WifiDialog';
+import { FORK_DEFAULTS } from '../config/forkDefaults';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { HttpServerModule } = NativeModules;
 
@@ -43,8 +46,12 @@ const MOTION_PRE_CHECK_DELAY_MS = 10_000;
 
 const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const isFocused = useIsFocused();
+  const safeAreaInsets = useSafeAreaInsets();
   const [url, setUrl] = useState<string>('');
-  const [autoReload, setAutoReload] = useState<boolean>(false);
+  const [autoReload, setAutoReload] = useState<boolean>(
+    FORK_DEFAULTS.reloadOnError,
+  );
+  const [wifiDialogVisible, setWifiDialogVisible] = useState<boolean>(false);
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   const [pauseWebMediaWhenHidden, setPauseWebMediaWhenHidden] = useState<boolean>(true);
   const [screensaverEnabled, setScreensaverEnabled] = useState(false);
@@ -150,8 +157,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const screenSchedulerTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Keep Screen On setting
-  const [keepScreenOn, setKeepScreenOn] = useState<boolean>(true);
-  const keepScreenOnRef = useRef<boolean>(true);
+  const [keepScreenOn, setKeepScreenOn] = useState<boolean>(
+    FORK_DEFAULTS.keepScreenOn,
+  );
+  const keepScreenOnRef = useRef<boolean>(FORK_DEFAULTS.keepScreenOn);
   
   // Inactivity Return to Home states
   const [inactivityReturnEnabled, setInactivityReturnEnabled] = useState<boolean>(false);
@@ -199,7 +208,9 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [printPaperSize, setPrintPaperSize] = useState<string>('A4');
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [zoomMode, setZoomMode] = useState<string>('standard');
-  const [disableUserZoom, setDisableUserZoom] = useState<boolean>(false);
+  const [disableUserZoom, setDisableUserZoom] = useState<boolean>(
+    FORK_DEFAULTS.disableUserZoom,
+  );
   const [customUserAgent, setCustomUserAgent] = useState<string>('');
   const [basicAuthUsername, setBasicAuthUsername] = useState<string>('');
   const [basicAuthPassword, setBasicAuthPassword] = useState<string>('');
@@ -1462,7 +1473,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
       const savedUrl = str(K.URL);
       console.log('[KioskScreen] savedUrl:', savedUrl);
-      const savedAutoReload = bool(K.AUTO_RELOAD, true);
+      const savedAutoReload = bool(K.AUTO_RELOAD, FORK_DEFAULTS.reloadOnError);
       const savedPauseWebMediaWhenHidden = bool(K.PAUSE_WEB_MEDIA_WHEN_HIDDEN, true);
       const savedKioskEnabled = bool(K.KIOSK_ENABLED, false);
       const savedScreensaverEnabled = bool(K.SCREENSAVER_ENABLED, false);
@@ -1638,7 +1649,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setScreenSchedulerWakeOnTouch(savedScreenSchedulerWakeOnTouch);
       
       // Load Keep Screen On setting
-      const savedKeepScreenOn = bool(K.KEEP_SCREEN_ON, true);
+      const savedKeepScreenOn = bool(K.KEEP_SCREEN_ON, FORK_DEFAULTS.keepScreenOn);
       setKeepScreenOn(savedKeepScreenOn);
       keepScreenOnRef.current = savedKeepScreenOn;
       // Apply the flag natively
@@ -1703,7 +1714,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setZoomMode(savedZoomMode);
 
       // Load Disable User Zoom
-      const savedDisableUserZoom = bool(K.DISABLE_USER_ZOOM, false);
+      const savedDisableUserZoom = bool(K.DISABLE_USER_ZOOM, FORK_DEFAULTS.disableUserZoom);
       setDisableUserZoom(savedDisableUserZoom);
 
       // Load Custom User Agent
@@ -2535,6 +2546,25 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     }, returnTapTimeout - (now - lastTapTimeRef.current));
   };
 
+  const handleOpenWifiDialog = (): void => {
+    // Keep the in-app Wi-Fi flow available long enough to finish setup without
+    // allowing the screensaver timer to cover it.
+    clearTimer();
+    setIsScreensaverActive(false);
+    setWifiDialogVisible(true);
+  };
+
+  const handleCloseWifiDialog = (): void => {
+    setWifiDialogVisible(false);
+    resetTimer();
+  };
+
+  const wifiButtonTop =
+    (statusBarEnabled ? 28 : 0) +
+    (dashboardModeEnabled ? 28 : 0) +
+    Math.max(safeAreaInsets.top, 8);
+  const wifiButtonRight = Math.max(safeAreaInsets.right, 8);
+
   return (
     <View style={styles.container}>
       {displayMode === 'webview' ? (
@@ -2661,6 +2691,26 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           onLaunchApp={(pkg) => launchExternalApp(pkg)}
         />
       )}
+
+      {/* Fork-specific customer access: only expose the in-app Wi-Fi manager. */}
+      {displayMode === 'webview' && !isScreensaverActive && !isScheduledSleep && (
+        <TouchableOpacity
+          testID="kiosk-wifi-button"
+          accessibilityRole="button"
+          accessibilityLabel="Configure Wi-Fi"
+          activeOpacity={0.9}
+          hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+          style={[
+            styles.kioskWifiButton,
+            { top: wifiButtonTop, right: wifiButtonRight },
+          ]}
+          onPress={handleOpenWifiDialog}
+        >
+          <MaterialCommunityIcons name="wifi-cog" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+
+      <WifiDialog visible={wifiDialogVisible} onClose={handleCloseWifiDialog} />
 
       {/* Motion Detector - Active during pre-check OR when screensaver is ON (only if screen is focused) */}
       <MotionDetector
@@ -2792,6 +2842,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: 'bold',
+  },
+  kioskWifiButton: {
+    position: 'absolute',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.48)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    elevation: 9,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    zIndex: 1100,
   },
   webBackButton: {
     position: 'absolute',

@@ -1,14 +1,14 @@
 /**
  * WifiDialog — lock-screen WiFi manager.
  *
- * Renders as a full-screen modal so it works whether it's shown from the
- * PIN screen or from the kiosk swipe-down panel.  Never launches the system
+ * Renders as a full-screen modal so it works whether it is shown from the
+ * PIN screen or from this fork's kiosk Wi-Fi button. Never launches the system
  * Settings app, so it cannot be used as a back-door into other settings.
  *
- * Android 10+ note: WifiManager.setWifiEnabled() is blocked for non-system
- * apps on API 29+.  When the native module returns requiresSystemPanel=true
- * we open Settings.Panel.ACTION_WIFI (a bottom-sheet overlay, not the full
- * Settings app), which is the only safe option on those versions.
+ * Android 10+ note: WifiManager.setWifiEnabled() is blocked for many
+ * non-system apps on API 29+. If the native module cannot toggle Wi-Fi, this
+ * dialog reports the limitation instead of opening Android Settings, which
+ * would create an escape route from kiosk mode.
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';

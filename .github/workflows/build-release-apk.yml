@@ -1,0 +1,155 @@
+name: Build and publish RC-FreeKiosk APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Git tag for the GitHub Release (example: v1.0.0)'
+        required: true
+        type: string
+      release_name:
+        description: 'Release title (leave empty to use RC-FreeKiosk <tag>)'
+        required: false
+        type: string
+      prerelease:
+        description: 'Mark the GitHub Release as a pre-release'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rc-freekiosk-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    name: Build APK and publish Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout selected revision
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install JavaScript dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Configure optional release signing
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.RC_FREEKIOSK_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.RC_FREEKIOSK_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RC_FREEKIOSK_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.RC_FREEKIOSK_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          configured_values=0
+          for value in "${KEYSTORE_BASE64}" "${STORE_PASSWORD}" "${KEY_ALIAS}" "${KEY_PASSWORD}"; do
+            if [[ -n "${value}" ]]; then
+              configured_values=$((configured_values + 1))
+            fi
+          done
+
+          if [[ "${configured_values}" -eq 0 ]]; then
+            echo 'No release-signing secrets configured; Gradle will use its existing debug-keystore fallback.'
+            echo 'store_file=' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [[ "${configured_values}" -ne 4 ]]; then
+            echo 'Release signing is only partially configured. Set all four RC_FREEKIOSK_* secrets.' >&2
+            exit 1
+          fi
+
+          keystore_path='android/app/rc-freekiosk-release.keystore'
+          printf '%s' "${KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
+          chmod 600 "${keystore_path}"
+          echo 'store_file=rc-freekiosk-release.keystore' >> "${GITHUB_OUTPUT}"
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          FREEKIOSK_UPLOAD_STORE_FILE: ${{ steps.signing.outputs.store_file }}
+          FREEKIOSK_UPLOAD_STORE_PASSWORD: ${{ secrets.RC_FREEKIOSK_STORE_PASSWORD }}
+          FREEKIOSK_UPLOAD_KEY_ALIAS: ${{ secrets.RC_FREEKIOSK_KEY_ALIAS }}
+          FREEKIOSK_UPLOAD_KEY_PASSWORD: ${{ secrets.RC_FREEKIOSK_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Prepare release file
+        id: apk
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          source_apk='android/app/build/outputs/apk/release/app-release.apk'
+          if [[ ! -f "${source_apk}" ]]; then
+            echo "Release APK was not generated at ${source_apk}" >&2
+            exit 1
+          fi
+
+          safe_tag="$(printf '%s' "${RELEASE_TAG}" | tr -c 'A-Za-z0-9._-' '-')"
+          release_apk="android/app/build/outputs/apk/release/RC-FreeKiosk-${safe_tag}.apk"
+          cp "${source_apk}" "${release_apk}"
+
+          echo "path=${release_apk}" >> "${GITHUB_OUTPUT}"
+
+      # Deliberately uploads straight to GitHub Releases. Do not add an Actions
+      # artifact-upload step: this project must not consume artifact storage.
+      - name: Publish APK directly to GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${RELEASE_TAG}" ]]; then
+            echo 'A release tag is required.' >&2
+            exit 1
+          fi
+
+          title="${RELEASE_NAME}"
+          if [[ -z "${title}" ]]; then
+            title="RC-FreeKiosk ${RELEASE_TAG}"
+          fi
+
+          if gh release view "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${RELEASE_TAG} already exists; replacing its APK asset."
+            gh release upload "${RELEASE_TAG}" "${APK_PATH}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --clobber
+          else
+            release_options=()
+            if [[ "${PRERELEASE}" == 'true' ]]; then
+              release_options+=(--prerelease)
+            fi
+
+            gh release create "${RELEASE_TAG}" "${APK_PATH}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --target "${GITHUB_SHA}" \
+              --title "${title}" \
+              --generate-notes \
+              "${release_options[@]}"
+          fi
+
+      - name: Remove temporary signing file
+        if: always()
+        run: rm -f android/app/rc-freekiosk-release.keystore

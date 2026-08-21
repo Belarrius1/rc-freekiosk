@@ -111,7 +111,7 @@ class ScreenStateReceiver : BroadcastReceiver() {
 
                                 // Restore FLAG_KEEP_SCREEN_ON if enabled
                                 val prefs = context.getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
-                                val keepScreenOn = prefs.getBoolean("keep_screen_on", true)
+                                val keepScreenOn = prefs.getBoolean("keep_screen_on", false)
                                 if (keepScreenOn) {
                                     activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                                 }

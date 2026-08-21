@@ -783,7 +783,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                         // Re-enable FLAG_KEEP_SCREEN_ON only if not in system-managed mode
                         // Check SharedPreferences for the keep_screen_on setting
                         val prefs = reactApplicationContext.getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
-                        val keepScreenOn = prefs.getBoolean("keep_screen_on", true)
+                        val keepScreenOn = prefs.getBoolean("keep_screen_on", false)
                         if (keepScreenOn) {
                             activity.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                         }
@@ -894,8 +894,8 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     /**
      * Set or clear the FLAG_KEEP_SCREEN_ON window flag.
-     * When enabled (default): screen stays on permanently — standard kiosk behavior.
-     * When disabled: Android system manages screen timeout normally.
+     * When enabled: screen stays on permanently.
+     * When disabled (fork default): Android manages screen timeout normally.
      */
     @ReactMethod
     fun setKeepScreenOn(enabled: Boolean, promise: Promise) {

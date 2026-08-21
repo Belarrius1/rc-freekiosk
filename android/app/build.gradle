@@ -9,6 +9,20 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 
+// GitHub Actions can provide release signing through environment secrets
+// without writing credentials to the repository. Local gradle.properties
+// remains supported and takes precedence over the debug fallback.
+def signingValue = { String key ->
+    def environmentValue = System.getenv(key)
+    return environmentValue != null && !environmentValue.isEmpty()
+        ? environmentValue
+        : keystoreProperties[key]
+}
+def releaseStoreFile = signingValue('FREEKIOSK_UPLOAD_STORE_FILE')
+def releaseStorePassword = signingValue('FREEKIOSK_UPLOAD_STORE_PASSWORD')
+def releaseKeyAlias = signingValue('FREEKIOSK_UPLOAD_KEY_ALIAS')
+def releaseKeyPassword = signingValue('FREEKIOSK_UPLOAD_KEY_PASSWORD')
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -130,12 +144,11 @@ android {
             keyPassword 'android'
         }
         release {
-            if (keystorePropertiesFile.exists() && 
-                keystoreProperties['FREEKIOSK_UPLOAD_STORE_FILE'] != null) {
-                storeFile file(keystoreProperties['FREEKIOSK_UPLOAD_STORE_FILE'])
-                storePassword keystoreProperties['FREEKIOSK_UPLOAD_STORE_PASSWORD']
-                keyAlias keystoreProperties['FREEKIOSK_UPLOAD_KEY_ALIAS']
-                keyPassword keystoreProperties['FREEKIOSK_UPLOAD_KEY_PASSWORD']
+            if (releaseStoreFile != null) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
             } else {
                 // Use debug keystore as fallback
                 storeFile file('debug.keystore')

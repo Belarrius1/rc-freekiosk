@@ -59,6 +59,7 @@ interface SettingsScreenProps {
 
 // Import Icon types
 import Icon, { IconName, IconMap } from '../../components/Icon';
+import { FORK_DEFAULTS } from '../../config/forkDefaults';
 
 // Tab configuration
 const TABS: { id: string; label: string; icon: IconName }[] = [
@@ -82,7 +83,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [pinModeChanged, setPinModeChanged] = useState<boolean>(false);
   const [pinMaxAttempts, setPinMaxAttempts] = useState<number>(5);
   const [pinMaxAttemptsText, setPinMaxAttemptsText] = useState<string>('5');
-  const [autoReload, setAutoReload] = useState<boolean>(false);
+  const [autoReload, setAutoReload] = useState<boolean>(
+    FORK_DEFAULTS.reloadOnError,
+  );
   const [kioskEnabled, setKioskEnabled] = useState<boolean>(false);
   const [autoLaunchEnabled, setAutoLaunchEnabled] = useState<boolean>(false);
   const [screenLockCompatEnabled, setScreenLockCompatEnabled] = useState<boolean>(false);
@@ -172,7 +175,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [screenSchedulerEnabled, setScreenSchedulerEnabled] = useState<boolean>(false);
   const [screenSchedulerRules, setScreenSchedulerRules] = useState<ScreenScheduleRule[]>([]);
   const [screenSchedulerWakeOnTouch, setScreenSchedulerWakeOnTouch] = useState<boolean>(true);
-  const [keepScreenOn, setKeepScreenOn] = useState<boolean>(true);
+  const [keepScreenOn, setKeepScreenOn] = useState<boolean>(
+    FORK_DEFAULTS.keepScreenOn,
+  );
   const [autoWakeOnScreenOff, setAutoWakeOnScreenOff] = useState<boolean>(false);
   const [showScheduleRuleEditor, setShowScheduleRuleEditor] = useState<boolean>(false);
   const [editingScheduleRule, setEditingScheduleRule] = useState<ScreenScheduleRule | null>(null);
@@ -211,7 +216,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   // WebView Zoom Level
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [zoomMode, setZoomMode] = useState<string>('standard');
-  const [disableUserZoom, setDisableUserZoom] = useState<boolean>(false);
+  const [disableUserZoom, setDisableUserZoom] = useState<boolean>(
+    FORK_DEFAULTS.disableUserZoom,
+  );
 
   // Custom User Agent
   const [customUserAgent, setCustomUserAgent] = useState<string>('');
@@ -1632,7 +1639,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
               setPinModeChanged(false);
               setPinMaxAttempts(5);
               setPinMaxAttemptsText('5');
-              setAutoReload(false);
+              setAutoReload(FORK_DEFAULTS.reloadOnError);
               setKioskEnabled(false);
               setAutoLaunchEnabled(false);
               setScreensaverEnabled(false);
@@ -1665,7 +1672,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
               setScreenSchedulerEnabled(false);
               setScreenSchedulerRules([]);
               setScreenSchedulerWakeOnTouch(true);
-              setKeepScreenOn(true);
+              setKeepScreenOn(FORK_DEFAULTS.keepScreenOn);
               setAutoWakeOnScreenOff(false);
 
               // Reset inactivity return state
@@ -1687,6 +1694,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
               setMediaPlayerTransition(true);
               setMediaPlayerTransitionDuration('500');
               setMediaPlayerMute(false);
+              setDisableUserZoom(FORK_DEFAULTS.disableUserZoom);
 
               try {
                 await KioskModule.stopLockTask();

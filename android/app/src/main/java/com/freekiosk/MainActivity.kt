@@ -78,8 +78,12 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(null)
 
-    // Keep screen always on
-    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    // This fork lets Android manage screen timeout by default. The persisted
+    // admin choice is re-applied by KioskModule once React Native has loaded.
+    val displayPrefs = getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
+    if (displayPrefs.getBoolean("keep_screen_on", false)) {
+      window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
 
     // Extend content into display cutout areas to prevent OEM chrome from appearing (#94)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

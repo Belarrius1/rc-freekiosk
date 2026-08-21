@@ -5,6 +5,7 @@ import { DashboardTile } from '../types/dashboard';
 import { ManagedApp } from '../types/managedApps';
 import { MediaItem, MediaFitMode } from '../types/mediaPlayer';
 import { saveSecureApiKey, getSecureApiKey, clearSecureApiKey, clearSecureMqttPassword } from './secureStorage';
+import { FORK_DEFAULTS } from '../config/forkDefaults';
 
 const KEYS = {
   URL: '@kiosk_url',
@@ -227,10 +228,10 @@ export const StorageService = {
   getAutoReload: async (): Promise<boolean> => {
     try {
       const value = await AsyncStorage.getItem(KEYS.AUTO_RELOAD);
-      return value ? JSON.parse(value) : false;
+      return value !== null ? JSON.parse(value) : FORK_DEFAULTS.reloadOnError;
     } catch (error) {
       console.error('Error getting auto reload:', error);
-      return false;
+      return FORK_DEFAULTS.reloadOnError;
     }
   },
 
@@ -441,6 +442,7 @@ export const StorageService = {
         // WebView Zoom Level
         KEYS.WEBVIEW_ZOOM_LEVEL,
         KEYS.WEBVIEW_ZOOM_MODE,
+        KEYS.DISABLE_USER_ZOOM,
         // Custom User Agent
         KEYS.CUSTOM_USER_AGENT,
         // MQTT
@@ -1897,10 +1899,10 @@ export const StorageService = {
   getKeepScreenOn: async (): Promise<boolean> => {
     try {
       const value = await AsyncStorage.getItem(KEYS.KEEP_SCREEN_ON);
-      return value !== null ? JSON.parse(value) : true; // Default: ON (screen always on)
+      return value !== null ? JSON.parse(value) : FORK_DEFAULTS.keepScreenOn;
     } catch (error) {
       console.error('Error getting keep screen on:', error);
-      return true;
+      return FORK_DEFAULTS.keepScreenOn;
     }
   },
 
@@ -2204,10 +2206,10 @@ export const StorageService = {
   getDisableUserZoom: async (): Promise<boolean> => {
     try {
       const value = await AsyncStorage.getItem(KEYS.DISABLE_USER_ZOOM);
-      return value ? JSON.parse(value) : false;
+      return value !== null ? JSON.parse(value) : FORK_DEFAULTS.disableUserZoom;
     } catch (error) {
       console.error('Error getting disable user zoom:', error);
-      return false;
+      return FORK_DEFAULTS.disableUserZoom;
     }
   },
 
