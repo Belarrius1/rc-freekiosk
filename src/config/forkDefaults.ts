@@ -3,4 +3,6 @@ export const FORK_DEFAULTS = {
   reloadOnError: true,
   keepScreenOn: false,
   disableUserZoom: true,
+  blockFactoryReset: true,
+  defaultLauncher: true,
 } as const;

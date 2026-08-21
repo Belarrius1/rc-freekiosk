@@ -8,19 +8,21 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { RC_THEME } from '../theme/relicCommanderTheme';
 
 const { AudioControlModule } = NativeModules;
 
 const OUTPUT_ICONS: Record<string, string> = {
-  auto: '🔈',
-  speaker: '🔊',
-  speaker_forced: '🔊',
-  wired_headphones: '🎧',
-  wired_headset: '🎧',
-  usb_headset: '🎧',
-  hdmi: '📺',
-  bluetooth_a2dp: '🎵',
-  bluetooth_sco: '🎤',
+  auto: 'volume-medium',
+  speaker: 'volume-high',
+  speaker_forced: 'volume-high',
+  wired_headphones: 'headphones',
+  wired_headset: 'headset',
+  usb_headset: 'usb-port',
+  hdmi: 'monitor-speaker',
+  bluetooth_a2dp: 'bluetooth-audio',
+  bluetooth_sco: 'microphone',
 };
 
 interface AudioOutput {
@@ -86,28 +88,68 @@ export default function AudioOutputDialog({ visible, onClose }: Props) {
     <Modal
       visible={visible}
       transparent
+      statusBarTranslucent
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+      <TouchableOpacity
+        style={styles.overlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
         <TouchableOpacity style={styles.card} activeOpacity={1}>
-          <Text style={styles.title}>Audio Output</Text>
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.eyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.title}>Audio control</Text>
+            </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Close audio controls"
+              style={styles.closeButton}
+              onPress={onClose}
+            >
+              <MaterialCommunityIcons
+                name="close"
+                size={22}
+                color={RC_THEME.colors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
 
           {isLoading && !audioInfo ? (
-            <ActivityIndicator color="#0066cc" />
+            <ActivityIndicator color={RC_THEME.colors.accentBright} />
           ) : (
             <>
-              {outputs.map((out) => {
-                const isActive = out.type === audioInfo?.currentOutput || out.id === audioInfo?.currentOutput;
+              {outputs.map(out => {
+                const isActive =
+                  out.type === audioInfo?.currentOutput ||
+                  out.id === audioInfo?.currentOutput;
                 return (
                   <TouchableOpacity
                     key={`${out.id}-${out.label}`}
                     style={[styles.row, isActive && styles.rowActive]}
                     onPress={() => handleSelectOutput(out)}
                   >
-                    <Text style={styles.rowIcon}>{OUTPUT_ICONS[out.type] ?? '🔈'}</Text>
-                    <Text style={[styles.rowLabel, isActive && styles.rowLabelActive]}>{out.label}</Text>
-                    {isActive && <Text style={styles.check}>✓</Text>}
+                    <MaterialCommunityIcons
+                      name={OUTPUT_ICONS[out.type] ?? 'volume-medium'}
+                      size={25}
+                      color={
+                        isActive
+                          ? RC_THEME.colors.accentBright
+                          : RC_THEME.colors.textMuted
+                      }
+                      style={styles.rowIcon}
+                    />
+                    <Text
+                      style={[
+                        styles.rowLabel,
+                        isActive && styles.rowLabelActive,
+                      ]}
+                    >
+                      {out.label}
+                    </Text>
+                    {isActive && <Text style={styles.check}>ACTIVE</Text>}
                   </TouchableOpacity>
                 );
               })}
@@ -116,9 +158,19 @@ export default function AudioOutputDialog({ visible, onClose }: Props) {
                 <Text style={styles.empty}>No selectable outputs found</Text>
               )}
 
-              <TouchableOpacity style={styles.muteButton} onPress={handleMuteToggle}>
-                <Text style={styles.muteIcon}>{audioInfo?.isMuted ? '🔇' : '🔉'}</Text>
-                <Text style={styles.muteLabel}>{audioInfo?.isMuted ? 'Unmute' : 'Mute'}</Text>
+              <TouchableOpacity
+                style={styles.muteButton}
+                onPress={handleMuteToggle}
+              >
+                <MaterialCommunityIcons
+                  name={audioInfo?.isMuted ? 'volume-off' : 'volume-mute'}
+                  size={22}
+                  color={RC_THEME.colors.textInverse}
+                  style={styles.muteIcon}
+                />
+                <Text style={styles.muteLabel}>
+                  {audioInfo?.isMuted ? 'Unmute' : 'Mute'}
+                </Text>
               </TouchableOpacity>
             </>
           )}
@@ -131,7 +183,7 @@ export default function AudioOutputDialog({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.42)',
+    backgroundColor: RC_THEME.colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
@@ -139,52 +191,78 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 360,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 16,
-    elevation: 8,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.borderStrong,
+    borderRadius: RC_THEME.radius.large,
+    backgroundColor: RC_THEME.colors.surfaceCard,
+    ...RC_THEME.shadow.card,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  eyebrow: {
+    marginBottom: 3,
+    color: RC_THEME.colors.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.8,
   },
   title: {
-    color: '#222',
+    color: RC_THEME.colors.textPrimary,
     fontSize: 18,
     fontWeight: '700',
-    marginBottom: 12,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.pill,
+    backgroundColor: RC_THEME.colors.surfaceInput,
   },
   row: {
     minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: RC_THEME.radius.medium,
     paddingHorizontal: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fafafa',
+    borderColor: RC_THEME.colors.border,
+    backgroundColor: RC_THEME.colors.surface,
   },
   rowActive: {
-    borderColor: '#0066cc',
-    backgroundColor: '#eaf3ff',
+    borderColor: RC_THEME.colors.primary,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
   },
   rowIcon: {
-    fontSize: 24,
     width: 36,
   },
   rowLabel: {
     flex: 1,
-    color: '#333',
+    color: RC_THEME.colors.textSecondary,
     fontSize: 15,
     fontWeight: '600',
   },
   rowLabelActive: {
-    color: '#004f9e',
+    color: RC_THEME.colors.textPrimary,
   },
   check: {
-    color: '#0066cc',
-    fontSize: 18,
+    color: RC_THEME.colors.accentBright,
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 0.8,
   },
   empty: {
-    color: '#666',
+    color: RC_THEME.colors.textMuted,
     fontSize: 14,
     paddingVertical: 12,
     textAlign: 'center',
@@ -194,18 +272,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#333',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.small,
+    backgroundColor: RC_THEME.colors.primaryPressed,
     marginTop: 4,
     paddingHorizontal: 12,
   },
   muteIcon: {
-    fontSize: 22,
     marginRight: 8,
   },
   muteLabel: {
-    color: '#fff',
+    color: RC_THEME.colors.textInverse,
     fontSize: 15,
     fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

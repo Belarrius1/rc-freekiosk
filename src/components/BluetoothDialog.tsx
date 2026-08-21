@@ -20,6 +20,8 @@ import {
   Alert,
 } from 'react-native';
 import { NativeModules } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { RC_THEME } from '../theme/relicCommanderTheme';
 
 const { BluetoothControlModule } = NativeModules;
 
@@ -49,8 +51,12 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
   const [discovering, setDiscovering] = useState(false);
   const [togglingBt, setTogglingBt] = useState(false);
   const [pairingAddress, setPairingAddress] = useState<string | null>(null);
-  const [connectingAddress, setConnectingAddress] = useState<string | null>(null);
-  const [disconnectingAddress, setDisconnectingAddress] = useState<string | null>(null);
+  const [connectingAddress, setConnectingAddress] = useState<string | null>(
+    null,
+  );
+  const [disconnectingAddress, setDisconnectingAddress] = useState<
+    string | null
+  >(null);
   const [removingAddress, setRemovingAddress] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -62,13 +68,20 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
     }
   }, []);
 
-  const updateBondedDeviceConnection = (address: string, connected: boolean) => {
-    setBtInfo((current) => current ? {
-      ...current,
-      bondedDevices: current.bondedDevices.map((device) =>
-        device.address === address ? { ...device, connected } : device
-      ),
-    } : current);
+  const updateBondedDeviceConnection = (
+    address: string,
+    connected: boolean,
+  ) => {
+    setBtInfo(current =>
+      current
+        ? {
+            ...current,
+            bondedDevices: current.bondedDevices.map(device =>
+              device.address === address ? { ...device, connected } : device,
+            ),
+          }
+        : current,
+    );
   };
 
   const refreshSoon = () => {
@@ -86,7 +99,7 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
       } catch (e) {
         console.warn('[BluetoothDialog] state poll error:', e);
       }
-      await new Promise<void>((resolve) => setTimeout(resolve, 600));
+      await new Promise<void>(resolve => setTimeout(resolve, 600));
     }
     return false;
   };
@@ -97,15 +110,21 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
     setDiscoveredDevices([]);
     setDiscovering(false);
 
-    const foundSub = DeviceEventEmitter.addListener('bluetoothDeviceFound', (device: BTDevice) => {
-      setDiscoveredDevices((prev) => {
-        const exists = prev.some((d) => d.address === device.address);
-        return exists ? prev : [...prev, device];
-      });
-    });
-    const doneSub = DeviceEventEmitter.addListener('bluetoothDiscoveryFinished', () => {
-      setDiscovering(false);
-    });
+    const foundSub = DeviceEventEmitter.addListener(
+      'bluetoothDeviceFound',
+      (device: BTDevice) => {
+        setDiscoveredDevices(prev => {
+          const exists = prev.some(d => d.address === device.address);
+          return exists ? prev : [...prev, device];
+        });
+      },
+    );
+    const doneSub = DeviceEventEmitter.addListener(
+      'bluetoothDiscoveryFinished',
+      () => {
+        setDiscovering(false);
+      },
+    );
 
     return () => {
       foundSub.remove();
@@ -132,19 +151,24 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
       setDiscovering(false);
     }
     try {
-      const result = await BluetoothControlModule.setBluetoothEnabled(nextEnabled);
+      const result = await BluetoothControlModule.setBluetoothEnabled(
+        nextEnabled,
+      );
       if (result.requiresSystemPanel) {
         setBtInfo(previousInfo);
         // Do NOT open system Settings panels — that would break kiosk isolation.
         Alert.alert(
           'Bluetooth toggle unavailable',
-          'Bluetooth could not be toggled on this device. Please ask an administrator to enable it.'
+          'Bluetooth could not be toggled on this device. Please ask an administrator to enable it.',
         );
       } else if (result.success === false) {
         const reachedState = await waitForBluetoothState(nextEnabled);
         if (!reachedState) {
           setBtInfo(previousInfo);
-          Alert.alert('Bluetooth toggle failed', `Could not turn Bluetooth ${nextEnabled ? 'on' : 'off'}.`);
+          Alert.alert(
+            'Bluetooth toggle failed',
+            `Could not turn Bluetooth ${nextEnabled ? 'on' : 'off'}.`,
+          );
         }
       } else {
         const reachedState = await waitForBluetoothState(nextEnabled, 5000);
@@ -153,7 +177,10 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
     } catch (e) {
       setBtInfo(previousInfo);
       console.warn('[BluetoothDialog] toggle error:', e);
-      Alert.alert('Bluetooth toggle failed', `Could not turn Bluetooth ${nextEnabled ? 'on' : 'off'}.`);
+      Alert.alert(
+        'Bluetooth toggle failed',
+        `Could not turn Bluetooth ${nextEnabled ? 'on' : 'off'}.`,
+      );
     } finally {
       setTogglingBt(false);
     }
@@ -180,7 +207,9 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
       await BluetoothControlModule.pairDevice(device.address);
       await refresh();
       // Remove from discovered list once paired
-      setDiscoveredDevices((prev) => prev.filter((d) => d.address !== device.address));
+      setDiscoveredDevices(prev =>
+        prev.filter(d => d.address !== device.address),
+      );
     } catch (e: any) {
       Alert.alert('Pairing failed', e?.message ?? 'Could not pair with device');
     } finally {
@@ -192,15 +221,23 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
     if (connectingAddress || disconnectingAddress) return;
     setConnectingAddress(device.address);
     try {
-      const success = await BluetoothControlModule.connectDevice(device.address);
+      const success = await BluetoothControlModule.connectDevice(
+        device.address,
+      );
       if (!success) {
-        Alert.alert('Connection failed', 'Could not connect to this paired device.');
+        Alert.alert(
+          'Connection failed',
+          'Could not connect to this paired device.',
+        );
       } else {
         updateBondedDeviceConnection(device.address, true);
       }
       refreshSoon();
     } catch (e: any) {
-      Alert.alert('Connection failed', e?.message ?? 'Could not connect to device');
+      Alert.alert(
+        'Connection failed',
+        e?.message ?? 'Could not connect to device',
+      );
     } finally {
       setConnectingAddress(null);
     }
@@ -210,7 +247,9 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
     if (connectingAddress || disconnectingAddress) return;
     setDisconnectingAddress(device.address);
     try {
-      const success = await BluetoothControlModule.disconnectDevice(device.address);
+      const success = await BluetoothControlModule.disconnectDevice(
+        device.address,
+      );
       if (!success) {
         Alert.alert('Disconnect failed', 'Could not disconnect this device.');
       } else {
@@ -218,14 +257,23 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
       }
       refreshSoon();
     } catch (e: any) {
-      Alert.alert('Disconnect failed', e?.message ?? 'Could not disconnect device');
+      Alert.alert(
+        'Disconnect failed',
+        e?.message ?? 'Could not disconnect device',
+      );
     } finally {
       setDisconnectingAddress(null);
     }
   };
 
   const performRemovePairedDevice = async (device: BTDevice) => {
-    if (connectingAddress || disconnectingAddress || removingAddress || pairingAddress) return;
+    if (
+      connectingAddress ||
+      disconnectingAddress ||
+      removingAddress ||
+      pairingAddress
+    )
+      return;
     setRemovingAddress(device.address);
     try {
       if (device.connected) {
@@ -242,27 +290,31 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
       }
       refreshSoon();
     } catch (e: any) {
-      Alert.alert('Remove failed', e?.message ?? 'Could not remove this paired device.');
+      Alert.alert(
+        'Remove failed',
+        e?.message ?? 'Could not remove this paired device.',
+      );
     } finally {
       setRemovingAddress(null);
     }
   };
 
   const handleRemovePairedDevice = (device: BTDevice) => {
-    Alert.alert(
-      'Remove paired device',
-      `Forget ${device.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => {
-            void performRemovePairedDevice(device);
-          },
+    Alert.alert('Remove paired device', `Forget ${device.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => {
+          performRemovePairedDevice(device).catch(error => {
+            console.warn(
+              '[BluetoothDialog] remove paired device error:',
+              error,
+            );
+          });
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const rssiToSignal = (rssi?: number) => {
@@ -286,20 +338,35 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
         style={[styles.deviceRow, item.connected && styles.deviceRowConnected]}
       >
         <View style={styles.deviceInfo}>
-          <Text style={styles.deviceName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.deviceName} numberOfLines={1}>
+            {item.name}
+          </Text>
           <Text style={styles.deviceAddress}>{item.address}</Text>
         </View>
         <View style={styles.deviceActions}>
-          <Text style={[styles.deviceStatus, item.connected && styles.deviceStatusConnected]}>
+          <Text
+            style={[
+              styles.deviceStatus,
+              item.connected && styles.deviceStatusConnected,
+            ]}
+          >
             {item.connected ? '● Connected' : '○ Paired'}
           </Text>
           <TouchableOpacity
-            style={[styles.deviceActionBtn, isBusy && styles.deviceActionBtnDisabled]}
-            onPress={() => item.connected ? handleDisconnect(item) : handleConnect(item)}
+            style={[
+              styles.deviceActionBtn,
+              isBusy && styles.deviceActionBtnDisabled,
+            ]}
+            onPress={() =>
+              item.connected ? handleDisconnect(item) : handleConnect(item)
+            }
             disabled={isBusy || pairingAddress !== null}
           >
             {isBusy ? (
-              <ActivityIndicator color="#1565c0" size="small" />
+              <ActivityIndicator
+                color={RC_THEME.colors.accentBright}
+                size="small"
+              />
             ) : (
               <Text style={styles.deviceActionBtnText}>
                 {item.connected ? 'Disconnect' : 'Connect'}
@@ -323,13 +390,20 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
         disabled={isPairing || pairingAddress !== null}
       >
         <View style={styles.deviceInfo}>
-          <Text style={styles.deviceName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.deviceName} numberOfLines={1}>
+            {item.name}
+          </Text>
           <Text style={styles.deviceAddress}>
-            {item.address}{'  '}{rssiToSignal(item.rssi)}
+            {item.address}
+            {'  '}
+            {rssiToSignal(item.rssi)}
           </Text>
         </View>
         {isPairing ? (
-          <ActivityIndicator color="#0066cc" size="small" />
+          <ActivityIndicator
+            color={RC_THEME.colors.accentBright}
+            size="small"
+          />
         ) : (
           <Text style={styles.pairBtn}>Pair ›</Text>
         )}
@@ -348,15 +422,31 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>🔵  Bluetooth</Text>
+          <View style={styles.headerTitleRow}>
+            <MaterialCommunityIcons
+              name="bluetooth"
+              size={25}
+              color={RC_THEME.colors.accentBright}
+            />
+            <View>
+              <Text style={styles.headerEyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.headerTitle}>Bluetooth control</Text>
+            </View>
+          </View>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>✕</Text>
+            <MaterialCommunityIcons
+              name="close"
+              size={23}
+              color={RC_THEME.colors.textSecondary}
+            />
           </TouchableOpacity>
         </View>
 
         {/* Bluetooth not supported */}
         {btInfo?.supported === false && (
-          <Text style={styles.unsupportedText}>Bluetooth is not available on this device.</Text>
+          <Text style={styles.unsupportedText}>
+            Bluetooth is not available on this device.
+          </Text>
         )}
 
         {btInfo?.supported !== false && (
@@ -365,13 +455,20 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
             <View style={styles.toggleRow}>
               <Text style={styles.toggleLabel}>Bluetooth</Text>
               {togglingBt ? (
-                <ActivityIndicator color="#0066cc" />
+                <ActivityIndicator color={RC_THEME.colors.accentBright} />
               ) : (
                 <Switch
                   value={btInfo?.isEnabled ?? false}
                   onValueChange={handleToggleBt}
-                  trackColor={{ false: '#ccc', true: '#4caf50' }}
-                  thumbColor="#fff"
+                  trackColor={{
+                    false: RC_THEME.colors.surfaceElevated,
+                    true: RC_THEME.colors.primary,
+                  }}
+                  thumbColor={
+                    btInfo?.isEnabled
+                      ? RC_THEME.colors.accentBright
+                      : RC_THEME.colors.textMuted
+                  }
                 />
               )}
             </View>
@@ -387,22 +484,39 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
                     {(btInfo?.bondedDevices?.length ?? 0) > 0 && (
                       <>
                         <Text style={styles.sectionTitle}>Paired Devices</Text>
-                        {btInfo!.bondedDevices.map((d) => (
-                          <View key={d.address}>{renderBondedDevice({ item: d })}</View>
+                        {btInfo!.bondedDevices.map(d => (
+                          <View key={d.address}>
+                            {renderBondedDevice({ item: d })}
+                          </View>
                         ))}
                       </>
                     )}
 
                     {/* Scan button */}
                     <TouchableOpacity
-                      style={[styles.scanBtn, discovering && styles.scanBtnDisabled]}
+                      style={[
+                        styles.scanBtn,
+                        discovering && styles.scanBtnDisabled,
+                      ]}
                       onPress={handleScan}
                       disabled={discovering}
                     >
                       {discovering ? (
-                        <ActivityIndicator color="#fff" size="small" />
+                        <ActivityIndicator
+                          color={RC_THEME.colors.textInverse}
+                          size="small"
+                        />
                       ) : (
-                        <Text style={styles.scanBtnText}>🔍  Scan for devices</Text>
+                        <View style={styles.buttonContent}>
+                          <MaterialCommunityIcons
+                            name="radar"
+                            size={19}
+                            color={RC_THEME.colors.textInverse}
+                          />
+                          <Text style={styles.scanBtnText}>
+                            Scan for devices
+                          </Text>
+                        </View>
                       )}
                     </TouchableOpacity>
 
@@ -414,14 +528,18 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
                 }
                 ListFooterComponent={
                   <>
-                    {discoveredDevices.map((d) => (
-                      <View key={d.address}>{renderDiscoveredDevice({ item: d })}</View>
+                    {discoveredDevices.map(d => (
+                      <View key={d.address}>
+                        {renderDiscoveredDevice({ item: d })}
+                      </View>
                     ))}
                     {discovering && discoveredDevices.length === 0 && (
                       <Text style={styles.scanningText}>Scanning…</Text>
                     )}
                     {!discovering && discoveredDevices.length === 0 && (
-                      <Text style={styles.emptyText}>Tap "Scan" to find nearby devices</Text>
+                      <Text style={styles.emptyText}>
+                        Tap "Scan" to find nearby devices
+                      </Text>
                     )}
                   </>
                 }
@@ -430,7 +548,9 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
             )}
 
             {!btInfo?.isEnabled && (
-              <Text style={styles.disabledText}>Turn on Bluetooth to see paired and nearby devices.</Text>
+              <Text style={styles.disabledText}>
+                Turn on Bluetooth to see paired and nearby devices.
+              </Text>
             )}
           </>
         )}
@@ -442,49 +562,72 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: RC_THEME.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1565c0',
+    backgroundColor: RC_THEME.colors.header,
     paddingTop: 48,
     paddingBottom: 16,
     paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: RC_THEME.colors.borderStrong,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerEyebrow: {
+    marginBottom: 2,
+    color: RC_THEME.colors.primary,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.7,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+    color: RC_THEME.colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   closeBtn: {
-    padding: 8,
-  },
-  closeBtnText: {
-    fontSize: 22,
-    color: '#fff',
-    fontWeight: 'bold',
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.pill,
+    backgroundColor: RC_THEME.colors.surfaceInput,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    backgroundColor: RC_THEME.colors.surfaceCard,
+    margin: 16,
+    marginBottom: 8,
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.large,
   },
   toggleLabel: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: RC_THEME.colors.textSection,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#666',
+    color: RC_THEME.colors.textSection,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     paddingHorizontal: 16,
@@ -492,21 +635,34 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   scanBtn: {
-    backgroundColor: '#1565c0',
+    backgroundColor: RC_THEME.colors.primaryPressed,
     marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 4,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.small,
     alignItems: 'center',
+    ...RC_THEME.shadow.glow,
   },
   scanBtnDisabled: {
-    backgroundColor: '#999',
+    borderColor: RC_THEME.colors.disabled,
+    backgroundColor: RC_THEME.colors.surfaceElevated,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
   },
   scanBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: RC_THEME.colors.textInverse,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   listContent: {
     paddingBottom: 24,
@@ -514,17 +670,19 @@ const styles = StyleSheet.create({
   deviceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: RC_THEME.colors.surface,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.medium,
     marginHorizontal: 16,
     marginBottom: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    elevation: 1,
   },
   deviceRowConnected: {
-    borderWidth: 2,
-    borderColor: '#1565c0',
+    borderColor: RC_THEME.colors.primary,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
+    ...RC_THEME.shadow.glow,
   },
   deviceInfo: {
     flex: 1,
@@ -532,21 +690,21 @@ const styles = StyleSheet.create({
   deviceName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222',
+    color: RC_THEME.colors.textPrimary,
   },
   deviceAddress: {
     fontSize: 12,
-    color: '#888',
+    color: RC_THEME.colors.textMuted,
     marginTop: 2,
     fontFamily: 'monospace',
   },
   deviceStatus: {
     fontSize: 13,
-    color: '#888',
+    color: RC_THEME.colors.textMuted,
     fontWeight: '600',
   },
   deviceStatusConnected: {
-    color: '#1565c0',
+    color: RC_THEME.colors.accentBright,
   },
   deviceActions: {
     alignItems: 'flex-end',
@@ -558,8 +716,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#1565c0',
-    borderRadius: 6,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.small,
     marginTop: 6,
     paddingHorizontal: 10,
   },
@@ -568,42 +726,42 @@ const styles = StyleSheet.create({
   },
   deviceActionBtnText: {
     fontSize: 13,
-    color: '#1565c0',
+    color: RC_THEME.colors.accentInfo,
     fontWeight: '700',
   },
   deviceHint: {
     fontSize: 11,
-    color: '#888',
+    color: RC_THEME.colors.textMuted,
     marginTop: 6,
   },
   pairBtn: {
     fontSize: 15,
-    color: '#1565c0',
+    color: RC_THEME.colors.accentBright,
     fontWeight: '700',
   },
   scanningText: {
     textAlign: 'center',
-    color: '#666',
+    color: RC_THEME.colors.textSecondary,
     marginTop: 24,
     fontSize: 15,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#999',
+    color: RC_THEME.colors.textMuted,
     marginTop: 32,
     fontSize: 15,
     paddingHorizontal: 16,
   },
   disabledText: {
     textAlign: 'center',
-    color: '#999',
+    color: RC_THEME.colors.textMuted,
     marginTop: 60,
     fontSize: 16,
     paddingHorizontal: 40,
   },
   unsupportedText: {
     textAlign: 'center',
-    color: '#c62828',
+    color: RC_THEME.colors.danger,
     marginTop: 60,
     fontSize: 16,
     paddingHorizontal: 40,

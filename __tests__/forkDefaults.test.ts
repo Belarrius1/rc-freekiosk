@@ -16,6 +16,8 @@ describe('Free Kiosk fork defaults', () => {
       reloadOnError: true,
       keepScreenOn: false,
       disableUserZoom: true,
+      blockFactoryReset: true,
+      defaultLauncher: true,
     });
   });
 
@@ -23,15 +25,21 @@ describe('Free Kiosk fork defaults', () => {
     await expect(StorageService.getAutoReload()).resolves.toBe(true);
     await expect(StorageService.getKeepScreenOn()).resolves.toBe(false);
     await expect(StorageService.getDisableUserZoom()).resolves.toBe(true);
+    await expect(StorageService.getBlockFactoryReset()).resolves.toBe(true);
+    await expect(StorageService.getDefaultLauncher()).resolves.toBe(true);
   });
 
   it('preserves explicit administrator preferences', async () => {
     await StorageService.saveAutoReload(false);
     await StorageService.saveKeepScreenOn(true);
     await StorageService.saveDisableUserZoom(false);
+    await StorageService.saveBlockFactoryReset(false);
+    await StorageService.saveDefaultLauncher(false);
 
     await expect(StorageService.getAutoReload()).resolves.toBe(false);
     await expect(StorageService.getKeepScreenOn()).resolves.toBe(true);
     await expect(StorageService.getDisableUserZoom()).resolves.toBe(false);
+    await expect(StorageService.getBlockFactoryReset()).resolves.toBe(false);
+    await expect(StorageService.getDefaultLauncher()).resolves.toBe(false);
   });
 });

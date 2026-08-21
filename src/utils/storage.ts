@@ -293,7 +293,7 @@ export const StorageService = {
     }
   },
 
-  //DEFAULT LAUNCHER (#199) — opt-in, Device Owner only; default false → behavior unchanged
+  //DEFAULT LAUNCHER (#199) — enabled by default for this Device Owner kiosk fork
   saveDefaultLauncher: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.DEFAULT_LAUNCHER, JSON.stringify(value));
@@ -305,10 +305,10 @@ export const StorageService = {
   getDefaultLauncher: async (): Promise<boolean> => {
     try {
       const value = await AsyncStorage.getItem(KEYS.DEFAULT_LAUNCHER);
-      return value ? JSON.parse(value) : false;
+      return value === null ? FORK_DEFAULTS.defaultLauncher : JSON.parse(value);
     } catch (error) {
       console.error('Error getting default launcher:', error);
-      return false;
+      return FORK_DEFAULTS.defaultLauncher;
     }
   },
 
@@ -340,6 +340,7 @@ export const StorageService = {
         KEYS.AUTO_RELOAD,
         KEYS.KIOSK_ENABLED,
         KEYS.AUTO_LAUNCH,
+        KEYS.DEFAULT_LAUNCHER,
         KEYS.SCREENSAVER_ENABLED,
         KEYS.SCREENSAVER_INACTIVITY_ENABLED,
         KEYS.SCREENSAVER_INACTIVITY_DELAY,
@@ -387,6 +388,8 @@ export const StorageService = {
         KEYS.REST_API_ALLOW_CONTROL,
         // Power Button
         KEYS.ALLOW_POWER_BUTTON,
+        // Factory Reset restriction
+        KEYS.BLOCK_FACTORY_RESET,
         // Notifications
         KEYS.ALLOW_NOTIFICATIONS,
         // System Info (audio fix)
@@ -1457,7 +1460,7 @@ export const StorageService = {
     }
   },
 
-  // BLOCK FACTORY RESET (#201)
+  // BLOCK FACTORY RESET (#201) — enabled by default for this Device Owner kiosk fork
   saveBlockFactoryReset: async (value: boolean): Promise<void> => {
     try {
       await AsyncStorage.setItem(KEYS.BLOCK_FACTORY_RESET, JSON.stringify(value));
@@ -1469,10 +1472,10 @@ export const StorageService = {
   getBlockFactoryReset: async (): Promise<boolean> => {
     try {
       const value = await AsyncStorage.getItem(KEYS.BLOCK_FACTORY_RESET);
-      return value ? JSON.parse(value) : false; // Default OFF - opt-in, no behavior change for existing installs
+      return value === null ? FORK_DEFAULTS.blockFactoryReset : JSON.parse(value);
     } catch (error) {
       console.error('Error getting block factory reset:', error);
-      return false;
+      return FORK_DEFAULTS.blockFactoryReset;
     }
   },
 

@@ -30,6 +30,12 @@ import Icon from '../components/Icon';
 import { revokeSettingsAccess } from '../utils/authState';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import WifiDialog from '../components/WifiDialog';
+import BluetoothDialog from '../components/BluetoothDialog';
+import AudioOutputDialog from '../components/AudioOutputDialog';
+import BrightnessDialog from '../components/BrightnessDialog';
+import KioskQuickSettingsDialog, {
+  KioskQuickSetting,
+} from '../components/KioskQuickSettingsDialog';
 import { FORK_DEFAULTS } from '../config/forkDefaults';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,7 +57,11 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [autoReload, setAutoReload] = useState<boolean>(
     FORK_DEFAULTS.reloadOnError,
   );
+  const [quickSettingsDialogVisible, setQuickSettingsDialogVisible] = useState<boolean>(false);
   const [wifiDialogVisible, setWifiDialogVisible] = useState<boolean>(false);
+  const [bluetoothDialogVisible, setBluetoothDialogVisible] = useState<boolean>(false);
+  const [audioDialogVisible, setAudioDialogVisible] = useState<boolean>(false);
+  const [brightnessDialogVisible, setBrightnessDialogVisible] = useState<boolean>(false);
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   const [pauseWebMediaWhenHidden, setPauseWebMediaWhenHidden] = useState<boolean>(true);
   const [screensaverEnabled, setScreensaverEnabled] = useState(false);
@@ -1545,7 +1555,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedBackButtonTimerDelay = num(K.BACK_BUTTON_TIMER_DELAY, 5);
       const savedKeyboardMode = str(K.KEYBOARD_MODE) ?? 'default';
       const savedAllowPowerButton = bool(K.ALLOW_POWER_BUTTON, true);
-      const savedBlockFactoryReset = bool(K.BLOCK_FACTORY_RESET, false);
+      const savedDefaultLauncher = bool(
+        K.DEFAULT_LAUNCHER,
+        FORK_DEFAULTS.defaultLauncher,
+      );
+      const savedBlockFactoryReset = bool(
+        K.BLOCK_FACTORY_RESET,
+        FORK_DEFAULTS.blockFactoryReset,
+      );
       const savedAllowNotifications = bool(K.ALLOW_NOTIFICATIONS, false);
       const savedAllowSystemInfo = bool(K.ALLOW_SYSTEM_INFO, false);
 
@@ -1557,6 +1574,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setKeyboardMode(savedKeyboardMode);
       setAllowPowerButton(savedAllowPowerButton);
       setAllowNotifications(savedAllowNotifications);
+
+      // Reconcile the persistent Home policy after pending ADB configuration has
+      // been imported. No-op with a handled rejection when not Device Owner.
+      try {
+        await KioskModule.setDefaultLauncherMode(savedDefaultLauncher);
+      } catch (error) {
+        console.warn('[KioskScreen] default launcher reconcile error (non-blocking):', error);
+      }
 
       // Reconcile factory-reset restriction with the stored toggle on every launch (#201),
       // independently of Lock Mode. No-op natively if not Device Owner.
@@ -2546,24 +2571,39 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     }, returnTapTimeout - (now - lastTapTimeRef.current));
   };
 
-  const handleOpenWifiDialog = (): void => {
-    // Keep the in-app Wi-Fi flow available long enough to finish setup without
-    // allowing the screensaver timer to cover it.
+  const handleOpenQuickSettings = (): void => {
+    // Keep customer-safe device controls available long enough to finish setup
+    // without allowing the screensaver timer to cover them.
     clearTimer();
     setIsScreensaverActive(false);
-    setWifiDialogVisible(true);
+    setQuickSettingsDialogVisible(true);
   };
 
-  const handleCloseWifiDialog = (): void => {
-    setWifiDialogVisible(false);
+  const handleCloseQuickSettings = (): void => {
+    setQuickSettingsDialogVisible(false);
     resetTimer();
   };
 
-  const wifiButtonTop =
+  const handleSelectQuickSetting = (setting: KioskQuickSetting): void => {
+    setQuickSettingsDialogVisible(false);
+    if (setting === 'wifi') setWifiDialogVisible(true);
+    if (setting === 'bluetooth') setBluetoothDialogVisible(true);
+    if (setting === 'audio') setAudioDialogVisible(true);
+    if (setting === 'brightness') setBrightnessDialogVisible(true);
+  };
+
+  const handleCloseDeviceDialog = (
+    closeDialog: React.Dispatch<React.SetStateAction<boolean>>,
+  ): void => {
+    closeDialog(false);
+    resetTimer();
+  };
+
+  const settingsButtonTop =
     (statusBarEnabled ? 28 : 0) +
     (dashboardModeEnabled ? 28 : 0) +
     Math.max(safeAreaInsets.top, 8);
-  const wifiButtonRight = Math.max(safeAreaInsets.right, 8);
+  const settingsButtonRight = Math.max(safeAreaInsets.right, 8);
 
   return (
     <View style={styles.container}>
@@ -2692,25 +2732,45 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         />
       )}
 
-      {/* Fork-specific customer access: only expose the in-app Wi-Fi manager. */}
+      {/* Fork-specific customer access: only expose restricted in-app controls. */}
       {displayMode === 'webview' && !isScreensaverActive && !isScheduledSleep && (
         <TouchableOpacity
-          testID="kiosk-wifi-button"
+          testID="kiosk-settings-button"
           accessibilityRole="button"
-          accessibilityLabel="Configure Wi-Fi"
+          accessibilityLabel="Open quick settings"
           activeOpacity={0.9}
           hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
           style={[
-            styles.kioskWifiButton,
-            { top: wifiButtonTop, right: wifiButtonRight },
+            styles.kioskSettingsButton,
+            { top: settingsButtonTop, right: settingsButtonRight },
           ]}
-          onPress={handleOpenWifiDialog}
+          onPress={handleOpenQuickSettings}
         >
-          <MaterialCommunityIcons name="wifi-cog" size={20} color="#FFFFFF" />
+          <MaterialCommunityIcons name="cog" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       )}
 
-      <WifiDialog visible={wifiDialogVisible} onClose={handleCloseWifiDialog} />
+      <KioskQuickSettingsDialog
+        visible={quickSettingsDialogVisible}
+        onClose={handleCloseQuickSettings}
+        onSelect={handleSelectQuickSetting}
+      />
+      <WifiDialog
+        visible={wifiDialogVisible}
+        onClose={() => handleCloseDeviceDialog(setWifiDialogVisible)}
+      />
+      <BluetoothDialog
+        visible={bluetoothDialogVisible}
+        onClose={() => handleCloseDeviceDialog(setBluetoothDialogVisible)}
+      />
+      <AudioOutputDialog
+        visible={audioDialogVisible}
+        onClose={() => handleCloseDeviceDialog(setAudioDialogVisible)}
+      />
+      <BrightnessDialog
+        visible={brightnessDialogVisible}
+        onClose={() => handleCloseDeviceDialog(setBrightnessDialogVisible)}
+      />
 
       {/* Motion Detector - Active during pre-check OR when screensaver is ON (only if screen is focused) */}
       <MotionDetector
@@ -2843,7 +2903,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  kioskWifiButton: {
+  kioskSettingsButton: {
     position: 'absolute',
     width: 38,
     height: 38,

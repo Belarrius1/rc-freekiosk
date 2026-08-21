@@ -291,7 +291,7 @@ class MainActivity : ReactActivity() {
   }
 
   /**
-   * Opt-in default-launcher policy (#199). When the "Set FreeKiosk as default launcher"
+   * Default-launcher policy (#199). When the "Set FreeKiosk as default launcher"
    * setting is ON and we are Device Owner, register FreeKiosk (MainActivity) as the PERSISTENT
    * preferred Home activity. The system then relaunches FreeKiosk itself at every boot and on
    * Home — with no dependency on the OEM "appear on top" / autostart / background-pop-up
@@ -300,11 +300,11 @@ class MainActivity : ReactActivity() {
    *
    * Reconciled on every launch (self-healing after an OS update): clear our own persistent
    * preferences, then re-add only if the setting is ON. Gated on Device Owner, and a no-op
-   * unless the opt-in is enabled — so behavior is unchanged for everyone who hasn't turned it on.
+   * unless the setting is enabled. This fork enables it by default for fresh Device Owner installs.
    */
   private fun applyDefaultLauncherPolicy() {
     if (!devicePolicyManager.isDeviceOwnerApp(packageName)) return
-    val enabled = getAsyncStorageValue("@kiosk_default_launcher", "false") == "true"
+    val enabled = getAsyncStorageValue("@kiosk_default_launcher", "true") == "true"
     try {
       // Only ever clears persistent preferences set by THIS admin (we set none other than HOME),
       // so this is safe and idempotent — it prevents duplicate entries accumulating.

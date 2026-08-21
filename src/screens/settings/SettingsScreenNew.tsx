@@ -89,7 +89,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [kioskEnabled, setKioskEnabled] = useState<boolean>(false);
   const [autoLaunchEnabled, setAutoLaunchEnabled] = useState<boolean>(false);
   const [screenLockCompatEnabled, setScreenLockCompatEnabled] = useState<boolean>(false);
-  const [defaultLauncherEnabled, setDefaultLauncherEnabled] = useState<boolean>(false);
+  const [defaultLauncherEnabled, setDefaultLauncherEnabled] = useState<boolean>(
+    FORK_DEFAULTS.defaultLauncher,
+  );
   const [screensaverEnabled, setScreensaverEnabled] = useState<boolean>(false);
   const [inactivityDelay, setInactivityDelay] = useState<string>('10');
   const [motionEnabled, setMotionEnabled] = useState<boolean>(false);
@@ -134,7 +136,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [statusBarTheme, setStatusBarTheme] = useState<'dark' | 'light'>('dark');
   const [keyboardMode, setKeyboardMode] = useState<string>('default');
   const [allowPowerButton, setAllowPowerButton] = useState<boolean>(true);
-  const [blockFactoryReset, setBlockFactoryReset] = useState<boolean>(false);
+  const [blockFactoryReset, setBlockFactoryReset] = useState<boolean>(
+    FORK_DEFAULTS.blockFactoryReset,
+  );
   const [allowNotifications, setAllowNotifications] = useState<boolean>(false);
   const [allowSystemInfo, setAllowSystemInfo] = useState<boolean>(false);
   const [returnMode, setReturnMode] = useState<string>('tap_anywhere');
@@ -461,7 +465,7 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
     setKioskEnabled(savedKioskEnabled);
     setAutoLaunchEnabled(savedAutoLaunch ?? false);
     setScreenLockCompatEnabled(savedScreenLockCompat ?? false);
-    setDefaultLauncherEnabled(savedDefaultLauncher ?? false);
+    setDefaultLauncherEnabled(savedDefaultLauncher);
     // Ensure BootReceiver component state matches the setting
     // This fixes installations where the component was previously disabled
     try {
@@ -1642,6 +1646,8 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
               setAutoReload(FORK_DEFAULTS.reloadOnError);
               setKioskEnabled(false);
               setAutoLaunchEnabled(false);
+              setDefaultLauncherEnabled(FORK_DEFAULTS.defaultLauncher);
+              setBlockFactoryReset(FORK_DEFAULTS.blockFactoryReset);
               setScreensaverEnabled(false);
               setInactivityDelay('10');
               setMotionEnabled(false);

@@ -24,14 +24,15 @@ import {
   Switch,
   DeviceEventEmitter,
   Alert,
-  Platform,
 } from 'react-native';
 import { NativeModules } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
   clearSecureWifiPassword,
   getSecureWifiPassword,
   saveSecureWifiPassword,
 } from '../utils/secureStorage';
+import { RC_THEME } from '../theme/relicCommanderTheme';
 
 const { WifiControlModule } = NativeModules;
 
@@ -93,13 +94,20 @@ export default function WifiDialog({ visible, onClose }: Props) {
     if (!visible) return;
     refresh();
 
-    const sub = DeviceEventEmitter.addListener('wifiScanResults', (results: WifiNetwork[]) => {
-      setNetworks(results);
-      setScanning(false);
-      void autoConnectKnownNetwork(results);
-    });
+    const sub = DeviceEventEmitter.addListener(
+      'wifiScanResults',
+      (results: WifiNetwork[]) => {
+        setNetworks(results);
+        setScanning(false);
+        autoConnectKnownNetwork(results).catch(error => {
+          console.warn('[WifiDialog] known-network connection error:', error);
+        });
+      },
+    );
+    // The scan listener intentionally remains stable while the modal is open;
+    // connection state is read through refs inside autoConnectKnownNetwork.
     return () => sub.remove();
-  }, [visible, refresh]);
+  }, [visible, refresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleWifi = async () => {
     if (!wifiInfo || togglingWifi) return;
@@ -128,11 +136,14 @@ export default function WifiDialog({ visible, onClose }: Props) {
         // escape route from kiosk mode. Instead inform the user.
         Alert.alert(
           'WiFi toggle unavailable',
-          'On this Android version, WiFi can only be toggled via the device status bar or by an administrator. Connect to a network below while WiFi is already on.'
+          'On this Android version, WiFi can only be toggled via the device status bar or by an administrator. Connect to a network below while WiFi is already on.',
         );
       } else if (result.success === false) {
         setWifiInfo(previousInfo);
-        Alert.alert('Wi-Fi toggle failed', `Could not turn Wi-Fi ${nextEnabled ? 'on' : 'off'}.`);
+        Alert.alert(
+          'Wi-Fi toggle failed',
+          `Could not turn Wi-Fi ${nextEnabled ? 'on' : 'off'}.`,
+        );
       } else {
         setTimeout(async () => {
           await refresh();
@@ -144,7 +155,10 @@ export default function WifiDialog({ visible, onClose }: Props) {
     } catch (e) {
       setWifiInfo(previousInfo);
       console.warn('[WifiDialog] toggle error:', e);
-      Alert.alert('Wi-Fi toggle failed', `Could not turn Wi-Fi ${nextEnabled ? 'on' : 'off'}.`);
+      Alert.alert(
+        'Wi-Fi toggle failed',
+        `Could not turn Wi-Fi ${nextEnabled ? 'on' : 'off'}.`,
+      );
     } finally {
       setTogglingWifi(false);
     }
@@ -157,7 +171,8 @@ export default function WifiDialog({ visible, onClose }: Props) {
     try {
       const started = await WifiControlModule.startScan();
       if (!started) {
-        const cachedResults: WifiNetwork[] = await WifiControlModule.getScanResults();
+        const cachedResults: WifiNetwork[] =
+          await WifiControlModule.getScanResults();
         setNetworks(cachedResults);
         setScanning(false);
       }
@@ -167,12 +182,17 @@ export default function WifiDialog({ visible, onClose }: Props) {
     } catch (e: any) {
       setScanning(false);
       console.warn('[WifiDialog] scan error:', e);
-      Alert.alert('Wi-Fi scan unavailable', e?.message || 'FreeKiosk does not have permission to scan for Wi-Fi networks.');
+      Alert.alert(
+        'Wi-Fi scan unavailable',
+        e?.message ||
+          'FreeKiosk does not have permission to scan for Wi-Fi networks.',
+      );
     }
   };
 
   const handleNetworkTap = async (network: WifiNetwork) => {
-    const isCurrentNetwork = wifiInfo?.isConnected && wifiInfo.ssid === network.ssid;
+    const isCurrentNetwork =
+      wifiInfo?.isConnected && wifiInfo.ssid === network.ssid;
     if (isCurrentNetwork) {
       await refresh();
       return;
@@ -192,7 +212,11 @@ export default function WifiDialog({ visible, onClose }: Props) {
     }
   };
 
-  const connectTo = async (ssid: string, pwd: string, usedSavedPassword = false) => {
+  const connectTo = async (
+    ssid: string,
+    pwd: string,
+    usedSavedPassword = false,
+  ) => {
     setPasswordSsid(null);
     setConnecting(ssid);
     connectingRef.current = ssid;
@@ -208,7 +232,10 @@ export default function WifiDialog({ visible, onClose }: Props) {
           await clearSecureWifiPassword(ssid);
           setPasswordSsid(ssid);
           setPassword('');
-          Alert.alert('Saved Wi-Fi password failed', `Enter the password for "${ssid}" again.`);
+          Alert.alert(
+            'Saved Wi-Fi password failed',
+            `Enter the password for "${ssid}" again.`,
+          );
           return;
         }
         Alert.alert('Connection failed', `Could not connect to "${ssid}"`);
@@ -218,10 +245,16 @@ export default function WifiDialog({ visible, onClose }: Props) {
         await clearSecureWifiPassword(ssid);
         setPasswordSsid(ssid);
         setPassword('');
-        Alert.alert('Saved Wi-Fi password failed', e?.message || `Enter the password for "${ssid}" again.`);
+        Alert.alert(
+          'Saved Wi-Fi password failed',
+          e?.message || `Enter the password for "${ssid}" again.`,
+        );
         return;
       }
-      Alert.alert('Connection failed', e?.message || `Could not connect to "${ssid}"`);
+      Alert.alert(
+        'Connection failed',
+        e?.message || `Could not connect to "${ssid}"`,
+      );
     } finally {
       setConnecting(null);
       connectingRef.current = null;
@@ -233,7 +266,12 @@ export default function WifiDialog({ visible, onClose }: Props) {
 
   const autoConnectKnownNetwork = async (scanResults: WifiNetwork[]) => {
     const currentInfo = wifiInfoRef.current;
-    if (!currentInfo?.isEnabled || currentInfo.isConnected || connectingRef.current || autoConnectingSsidRef.current) {
+    if (
+      !currentInfo?.isEnabled ||
+      currentInfo.isConnected ||
+      connectingRef.current ||
+      autoConnectingSsidRef.current
+    ) {
       return;
     }
 
@@ -263,20 +301,27 @@ export default function WifiDialog({ visible, onClose }: Props) {
       const result = await WifiControlModule.disconnectFromCurrentNetwork();
       if (result.success === false) {
         setWifiInfo(previousInfo);
-        Alert.alert('Disconnect failed', `Could not disconnect from "${previousInfo.ssid}".`);
+        Alert.alert(
+          'Disconnect failed',
+          `Could not disconnect from "${previousInfo.ssid}".`,
+        );
       } else {
         setTimeout(refresh, 700);
         setTimeout(refresh, 1800);
       }
     } catch (e: any) {
       setWifiInfo(previousInfo);
-      Alert.alert('Disconnect failed', e?.message || `Could not disconnect from "${previousInfo.ssid}".`);
+      Alert.alert(
+        'Disconnect failed',
+        e?.message || `Could not disconnect from "${previousInfo.ssid}".`,
+      );
     } finally {
       setDisconnectingWifi(false);
     }
   };
 
-  const signalIcon = (level: number) => SIGNAL_ICONS[Math.min(level, 3)] ?? SIGNAL_ICONS[0];
+  const signalIcon = (level: number) =>
+    SIGNAL_ICONS[Math.min(level, 3)] ?? SIGNAL_ICONS[0];
 
   return (
     <Modal
@@ -289,9 +334,23 @@ export default function WifiDialog({ visible, onClose }: Props) {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>📶  Wi-Fi</Text>
+          <View style={styles.headerTitleRow}>
+            <MaterialCommunityIcons
+              name="wifi-cog"
+              size={25}
+              color={RC_THEME.colors.accentBright}
+            />
+            <View>
+              <Text style={styles.headerEyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.headerTitle}>Wi-Fi control</Text>
+            </View>
+          </View>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>✕</Text>
+            <MaterialCommunityIcons
+              name="close"
+              size={23}
+              color={RC_THEME.colors.textSecondary}
+            />
           </TouchableOpacity>
         </View>
 
@@ -302,8 +361,15 @@ export default function WifiDialog({ visible, onClose }: Props) {
             value={wifiInfo?.isEnabled ?? false}
             onValueChange={handleToggleWifi}
             disabled={togglingWifi}
-            trackColor={{ false: '#ccc', true: '#4caf50' }}
-            thumbColor="#fff"
+            trackColor={{
+              false: RC_THEME.colors.surfaceElevated,
+              true: RC_THEME.colors.primary,
+            }}
+            thumbColor={
+              wifiInfo?.isEnabled
+                ? RC_THEME.colors.accentBright
+                : RC_THEME.colors.textMuted
+            }
           />
         </View>
 
@@ -313,16 +379,23 @@ export default function WifiDialog({ visible, onClose }: Props) {
             {wifiInfo.isConnected && (
               <View style={styles.connectedBanner}>
                 <Text style={styles.connectedText}>
-                  ✓ Connected: {wifiInfo.ssid}{'  '}
+                  ✓ Connected: {wifiInfo.ssid}
+                  {'  '}
                   {signalIcon(wifiInfo.signalLevel)}
                 </Text>
                 <TouchableOpacity
-                  style={[styles.disconnectBtn, disconnectingWifi && styles.disconnectBtnDisabled]}
+                  style={[
+                    styles.disconnectBtn,
+                    disconnectingWifi && styles.disconnectBtnDisabled,
+                  ]}
                   onPress={handleDisconnect}
                   disabled={disconnectingWifi}
                 >
                   {disconnectingWifi ? (
-                    <ActivityIndicator color="#2e7d32" size="small" />
+                    <ActivityIndicator
+                      color={RC_THEME.colors.success}
+                      size="small"
+                    />
                   ) : (
                     <Text style={styles.disconnectBtnText}>Disconnect</Text>
                   )}
@@ -337,23 +410,37 @@ export default function WifiDialog({ visible, onClose }: Props) {
               disabled={scanning}
             >
               {scanning ? (
-                <ActivityIndicator color="#fff" size="small" />
+                <ActivityIndicator
+                  color={RC_THEME.colors.textInverse}
+                  size="small"
+                />
               ) : (
-                <Text style={styles.scanBtnText}>🔍  Scan for networks</Text>
+                <View style={styles.buttonContent}>
+                  <MaterialCommunityIcons
+                    name="radar"
+                    size={19}
+                    color={RC_THEME.colors.textInverse}
+                  />
+                  <Text style={styles.scanBtnText}>Scan for networks</Text>
+                </View>
               )}
             </TouchableOpacity>
 
             {/* Network list */}
             <FlatList
               data={networks}
-              keyExtractor={(n) => n.bssid || n.ssid}
+              keyExtractor={n => n.bssid || n.ssid}
               contentContainerStyle={styles.listContent}
               renderItem={({ item }) => {
                 const isConnecting = connecting === item.ssid;
-                const isCurrentNetwork = wifiInfo.isConnected && wifiInfo.ssid === item.ssid;
+                const isCurrentNetwork =
+                  wifiInfo.isConnected && wifiInfo.ssid === item.ssid;
                 return (
                   <TouchableOpacity
-                    style={[styles.networkRow, isCurrentNetwork && styles.networkRowActive]}
+                    style={[
+                      styles.networkRow,
+                      isCurrentNetwork && styles.networkRowActive,
+                    ]}
                     onPress={() => handleNetworkTap(item)}
                     disabled={isConnecting}
                   >
@@ -362,11 +449,16 @@ export default function WifiDialog({ visible, onClose }: Props) {
                         {item.ssid}
                       </Text>
                       <Text style={styles.networkMeta}>
-                        {item.secured ? '🔒' : '🔓'}{'  '}{signalIcon(item.signalLevel)}
+                        {item.secured ? '🔒' : '🔓'}
+                        {'  '}
+                        {signalIcon(item.signalLevel)}
                       </Text>
                     </View>
                     {isConnecting ? (
-                      <ActivityIndicator color="#0066cc" size="small" />
+                      <ActivityIndicator
+                        color={RC_THEME.colors.accentBright}
+                        size="small"
+                      />
                     ) : isCurrentNetwork ? (
                       <Text style={styles.connectedBadge}>Connected</Text>
                     ) : (
@@ -377,7 +469,9 @@ export default function WifiDialog({ visible, onClose }: Props) {
               }}
               ListEmptyComponent={
                 !scanning ? (
-                  <Text style={styles.emptyText}>Tap "Scan" to find networks</Text>
+                  <Text style={styles.emptyText}>
+                    Tap "Scan" to find networks
+                  </Text>
                 ) : null
               }
             />
@@ -385,7 +479,9 @@ export default function WifiDialog({ visible, onClose }: Props) {
         )}
 
         {!wifiInfo?.isEnabled && (
-          <Text style={styles.disabledText}>Turn on Wi-Fi to see available networks.</Text>
+          <Text style={styles.disabledText}>
+            Turn on Wi-Fi to see available networks.
+          </Text>
         )}
       </View>
 
@@ -400,7 +496,9 @@ export default function WifiDialog({ visible, onClose }: Props) {
           <View style={styles.pwdOverlay}>
             <View style={styles.pwdCard}>
               <Text style={styles.pwdTitle}>Connect to</Text>
-              <Text style={styles.pwdSsid} numberOfLines={1}>{passwordSsid}</Text>
+              <Text style={styles.pwdSsid} numberOfLines={1}>
+                {passwordSsid}
+              </Text>
 
               <View style={styles.pwdInputRow}>
                 <TextInput
@@ -409,16 +507,18 @@ export default function WifiDialog({ visible, onClose }: Props) {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   placeholder="Password"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={RC_THEME.colors.textMuted}
                   autoFocus
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
                 <TouchableOpacity
                   style={styles.eyeBtn}
-                  onPress={() => setShowPassword((v) => !v)}
+                  onPress={() => setShowPassword(v => !v)}
                 >
-                  <Text style={styles.eyeBtnText}>{showPassword ? '🙈' : '👁️'}</Text>
+                  <Text style={styles.eyeBtnText}>
+                    {showPassword ? '🙈' : '👁️'}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -430,7 +530,10 @@ export default function WifiDialog({ visible, onClose }: Props) {
                   <Text style={styles.pwdCancelText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.pwdConnect, !password && styles.pwdConnectDisabled]}
+                  style={[
+                    styles.pwdConnect,
+                    !password && styles.pwdConnectDisabled,
+                  ]}
                   onPress={() => connectTo(passwordSsid!, password, false)}
                   disabled={!password}
                 >
@@ -448,57 +551,83 @@ export default function WifiDialog({ visible, onClose }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: RC_THEME.colors.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0066cc',
+    backgroundColor: RC_THEME.colors.header,
     paddingTop: 48,
     paddingBottom: 16,
     paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: RC_THEME.colors.borderStrong,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerEyebrow: {
+    marginBottom: 2,
+    color: RC_THEME.colors.primary,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.7,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
+    color: RC_THEME.colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   closeBtn: {
-    padding: 8,
-  },
-  closeBtnText: {
-    fontSize: 22,
-    color: '#fff',
-    fontWeight: 'bold',
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.pill,
+    backgroundColor: RC_THEME.colors.surfaceInput,
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
+    backgroundColor: RC_THEME.colors.surfaceCard,
+    margin: 16,
+    marginBottom: 8,
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.large,
   },
   toggleLabel: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: RC_THEME.colors.textSection,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   connectedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#e8f5e9',
-    paddingHorizontal: 20,
+    backgroundColor: RC_THEME.colors.successBackground,
+    marginHorizontal: 16,
+    marginTop: 4,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#c8e6c9',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.success,
+    borderRadius: RC_THEME.radius.medium,
   },
   connectedText: {
-    color: '#2e7d32',
+    color: RC_THEME.colors.success,
     fontSize: 15,
     fontWeight: '600',
     flex: 1,
@@ -510,33 +639,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#2e7d32',
-    borderRadius: 6,
+    borderColor: RC_THEME.colors.success,
+    borderRadius: RC_THEME.radius.small,
     paddingHorizontal: 10,
   },
   disconnectBtnDisabled: {
     opacity: 0.6,
   },
   disconnectBtnText: {
-    color: '#2e7d32',
+    color: RC_THEME.colors.success,
     fontSize: 13,
     fontWeight: '700',
   },
   scanBtn: {
-    backgroundColor: '#0066cc',
+    backgroundColor: RC_THEME.colors.primaryPressed,
     marginHorizontal: 16,
     marginVertical: 12,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.small,
     alignItems: 'center',
+    ...RC_THEME.shadow.glow,
   },
   scanBtnDisabled: {
-    backgroundColor: '#999',
+    borderColor: RC_THEME.colors.disabled,
+    backgroundColor: RC_THEME.colors.surfaceElevated,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
   },
   scanBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    color: RC_THEME.colors.textInverse,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   listContent: {
     paddingHorizontal: 16,
@@ -545,16 +687,18 @@ const styles = StyleSheet.create({
   networkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
+    backgroundColor: RC_THEME.colors.surface,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.medium,
     marginBottom: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    elevation: 1,
   },
   networkRowActive: {
-    borderWidth: 2,
-    borderColor: '#0066cc',
+    borderColor: RC_THEME.colors.primary,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
+    ...RC_THEME.shadow.glow,
   },
   networkInfo: {
     flex: 1,
@@ -562,32 +706,34 @@ const styles = StyleSheet.create({
   networkSsid: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#222',
+    color: RC_THEME.colors.textPrimary,
   },
   networkMeta: {
     fontSize: 13,
-    color: '#666',
+    color: RC_THEME.colors.textMuted,
     marginTop: 2,
     letterSpacing: 1,
   },
   connectedBadge: {
     fontSize: 13,
-    color: '#0066cc',
+    color: RC_THEME.colors.accentBright,
     fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   connectArrow: {
     fontSize: 24,
-    color: '#999',
+    color: RC_THEME.colors.accentInfo,
   },
   emptyText: {
     textAlign: 'center',
-    color: '#999',
+    color: RC_THEME.colors.textMuted,
     marginTop: 40,
     fontSize: 15,
   },
   disabledText: {
     textAlign: 'center',
-    color: '#999',
+    color: RC_THEME.colors.textMuted,
     marginTop: 60,
     fontSize: 16,
     paddingHorizontal: 40,
@@ -595,43 +741,49 @@ const styles = StyleSheet.create({
   // Password dialog
   pwdOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: RC_THEME.colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
   },
   pwdCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    backgroundColor: RC_THEME.colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.borderStrong,
+    borderRadius: RC_THEME.radius.large,
     padding: 24,
     width: '100%',
     maxWidth: 400,
+    ...RC_THEME.shadow.card,
   },
   pwdTitle: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: 12,
+    color: RC_THEME.colors.textMuted,
     marginBottom: 4,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   pwdSsid: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#222',
+    color: RC_THEME.colors.textPrimary,
     marginBottom: 20,
   },
   pwdInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#0066cc',
-    borderRadius: 8,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.medium,
     marginBottom: 20,
+    backgroundColor: RC_THEME.colors.surfaceInput,
   },
   pwdInput: {
     flex: 1,
     height: 52,
     paddingHorizontal: 14,
     fontSize: 18,
-    color: '#333',
+    color: RC_THEME.colors.textPrimary,
   },
   eyeBtn: {
     paddingHorizontal: 12,
@@ -646,29 +798,36 @@ const styles = StyleSheet.create({
   pwdCancel: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#ccc',
+    borderRadius: RC_THEME.radius.small,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
     alignItems: 'center',
+    backgroundColor: RC_THEME.colors.surface,
   },
   pwdCancelText: {
     fontSize: 16,
-    color: '#666',
-    fontWeight: '600',
+    color: RC_THEME.colors.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   pwdConnect: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 8,
-    backgroundColor: '#0066cc',
+    borderRadius: RC_THEME.radius.small,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    backgroundColor: RC_THEME.colors.primaryPressed,
     alignItems: 'center',
   },
   pwdConnectDisabled: {
-    backgroundColor: '#aaa',
+    borderColor: RC_THEME.colors.disabled,
+    backgroundColor: RC_THEME.colors.surfaceElevated,
   },
   pwdConnectText: {
     fontSize: 16,
-    color: '#fff',
+    color: RC_THEME.colors.textInverse,
     fontWeight: 'bold',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
   },
 });
