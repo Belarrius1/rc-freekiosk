@@ -30,7 +30,8 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
      */
     override fun getConstants(): MutableMap<String, Any> {
         return mutableMapOf(
-            "ENABLE_SELF_UPDATE" to BuildConfig.ENABLE_SELF_UPDATE
+            "ENABLE_SELF_UPDATE" to BuildConfig.ENABLE_SELF_UPDATE,
+            "VERSION_NAME" to BuildConfig.VERSION_NAME
         )
     }
 

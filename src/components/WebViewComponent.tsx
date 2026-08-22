@@ -18,8 +18,6 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-const { HttpServerModule } = NativeModules;
-
 import KioskModule from '../utils/KioskModule';
 import { WebView } from 'react-native-webview';
 import type {
@@ -30,6 +28,16 @@ import type {
 import PrintModule from '../utils/PrintModule';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RC_THEME } from '../theme/relicCommanderTheme';
+import {
+  buildRcTerminalCapabilitiesResponseScript,
+  isRcTerminalCapabilitiesRequest,
+  isRelicCommanderUrl,
+} from '../utils/rcTerminalBridge';
+
+const { HttpServerModule, UpdateModule } = NativeModules;
+
+const RC_TERMINAL_CAPABILITIES_RESPONSE_SCRIPT =
+  buildRcTerminalCapabilitiesResponseScript(UpdateModule?.VERSION_NAME);
 
 interface WebViewComponentProps {
   url: string;
@@ -698,6 +706,19 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     // Gestion des messages venant de la webview
     const onMessageHandler = (event: any) => {
       const message = event.nativeEvent.data;
+
+      // This bridge is a rendering hint only. Restrict it to the exact Relic
+      // Commander origin and answer every valid protocol request, including
+      // requests made after a navigation or reload.
+      if (
+        isRelicCommanderUrl(event.nativeEvent.url) &&
+        isRcTerminalCapabilitiesRequest(message)
+      ) {
+        webViewRef.current?.injectJavaScript(
+          RC_TERMINAL_CAPABILITIES_RESPONSE_SCRIPT,
+        );
+        return;
+      }
 
       if (message === 'user-interaction' && onUserInteraction) {
         onUserInteraction();
