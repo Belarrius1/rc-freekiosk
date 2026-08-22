@@ -1244,6 +1244,33 @@ class MainActivity : ReactActivity() {
     val pin = intent.getStringExtra("pin")
     val configJson = intent.getStringExtra("config") // Full JSON config
     val mqttBroker = intent.getStringExtra("mqtt_broker_url")
+    val returnTapCount = if (intent.hasExtra("return_tap_count")) {
+      intent.extras?.get("return_tap_count")?.toString()?.toIntOrNull()
+    } else {
+      null
+    }
+    val returnTapTimeout = if (intent.hasExtra("return_tap_timeout")) {
+      intent.extras?.get("return_tap_timeout")?.toString()?.toIntOrNull()
+    } else {
+      null
+    }
+
+    if (
+      intent.hasExtra("return_tap_count") &&
+      (returnTapCount == null || returnTapCount !in 2..20)
+    ) {
+      android.util.Log.w("FreeKiosk-ADB", "Rejected: return_tap_count must be between 2 and 20")
+      showAdbToast("❌ ADB Config: return_tap_count must be between 2 and 20")
+      return false
+    }
+    if (
+      intent.hasExtra("return_tap_timeout") &&
+      (returnTapTimeout == null || returnTapTimeout !in 500..5000)
+    ) {
+      android.util.Log.w("FreeKiosk-ADB", "Rejected: return_tap_timeout must be between 500 and 5000 ms")
+      showAdbToast("❌ ADB Config: return_tap_timeout must be between 500 and 5000 ms")
+      return false
+    }
 
     // Skip if no config parameters.
     // Treat the intent as an ADB config command if ANY recognized extra is present — not
@@ -1254,6 +1281,7 @@ class MainActivity : ReactActivity() {
       "lock_package", "url", "pin", "config",
       "kiosk_enabled", "auto_launch", "auto_start", "screensaver_enabled", "auto_relaunch",
       "test_mode", "back_button_mode", "status_bar", "pin_mode",
+      "return_tap_count", "return_tap_timeout",
       "rest_api_enabled", "rest_api_port", "rest_api_key",
       "mqtt_enabled", "mqtt_broker_url", "mqtt_port", "mqtt_username", "mqtt_password",
       "mqtt_client_id", "mqtt_base_topic", "mqtt_discovery_prefix", "mqtt_status_interval",
@@ -1347,6 +1375,13 @@ class MainActivity : ReactActivity() {
       if (lockPackage == null) {
         editor.putString("@kiosk_display_mode", "webview")
       }
+    }
+
+    if (returnTapCount != null) {
+      editor.putString("@kiosk_return_tap_count", returnTapCount.toString())
+    }
+    if (returnTapTimeout != null) {
+      editor.putString("@kiosk_return_tap_timeout", returnTapTimeout.toString())
     }
     
     // Handle additional options - only set if explicitly provided
@@ -1686,6 +1721,21 @@ class MainActivity : ReactActivity() {
         val value = config.get(jsonKey)
         editor.putString(storageKey, value.toString())
       }
+    }
+
+    if (config.has("return_tap_count")) {
+      val returnTapCount = config.get("return_tap_count").toString().toIntOrNull()
+      require(returnTapCount != null && returnTapCount in 2..20) {
+        "return_tap_count must be between 2 and 20"
+      }
+      editor.putString("@kiosk_return_tap_count", returnTapCount.toString())
+    }
+    if (config.has("return_tap_timeout")) {
+      val returnTapTimeout = config.get("return_tap_timeout").toString().toIntOrNull()
+      require(returnTapTimeout != null && returnTapTimeout in 500..5000) {
+        "return_tap_timeout must be between 500 and 5000 ms"
+      }
+      editor.putString("@kiosk_return_tap_timeout", returnTapTimeout.toString())
     }
     
     // Handle lock_package -> also set display_mode

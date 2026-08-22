@@ -163,6 +163,8 @@ Each app in the array supports these fields:
 | `--es test_mode "false"` | String | `"true"` | `"false"` = production (sets `back_button_mode` to `immediate`). `"true"` = testing (sets `back_button_mode` to `test`). Shortcut for `back_button_mode` |
 | `--es back_button_mode "immediate"` | String | `"test"` | Behavior when returning to FreeKiosk via Android back button: `"test"` (stay on FreeKiosk, back button allowed), `"timer"` (countdown then relaunch app), `"immediate"` (instantly relaunch app). If `test_mode` is also set, `back_button_mode` takes priority |
 | `--es status_bar "true"` | String | - | Show custom status bar |
+| `--es return_tap_count "10"` | String | `5` | Number of grouped taps required to open the administrator PIN screen (`2` to `20`) |
+| `--es return_tap_timeout "3000"` | String | `1500` | Time allowed to complete the grouped taps, in milliseconds (`500` to `5000`) |
 
 ### Password Options
 
@@ -449,6 +451,8 @@ When using `--es config '{...}'`, the following keys are supported:
   "rest_api_key": "your_api_key",
   "allow_power_button": "false",
   "back_button_mode": "immediate",
+  "return_tap_count": "10",
+  "return_tap_timeout": "3000",
   "test_mode": "false",
   "default_brightness": "75",
   "brightness_management_enabled": "true",
@@ -669,8 +673,6 @@ adb shell pm clear com.freekiosk
 - [REST API Documentation](REST-API) - Remote control via HTTP
 - [MDM Specification](MDM-SPEC) - Enterprise deployment
 - [Installation Guide](Installation) - Manual setup instructions
-
-
 
 
 

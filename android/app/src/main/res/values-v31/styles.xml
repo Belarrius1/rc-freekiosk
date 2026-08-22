@@ -1,13 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <!-- Base application theme. -->
+    <!-- Android 12+ mandatory system splash, kept visually consistent until React Native draws. -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@color/rc_background</item>
+        <item name="android:windowSplashScreenBackground">@color/rc_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/rc_terminal</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
         <item name="android:navigationBarColor">@color/rc_background</item>
         <item name="android:statusBarColor">@color/rc_background</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     </style>
-
 </resources>

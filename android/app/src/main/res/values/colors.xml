@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="rc_background">#10171E</color>
+    <color name="rc_accent">#66F5FF</color>
+</resources>

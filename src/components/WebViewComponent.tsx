@@ -12,10 +12,7 @@ import {
   ActivityIndicator,
   Text,
   TouchableOpacity,
-  Animated,
   Image,
-  ScrollView,
-  Linking,
   NativeModules,
   findNodeHandle,
 } from 'react-native';
@@ -23,21 +20,15 @@ import {
 const { HttpServerModule } = NativeModules;
 
 import KioskModule from '../utils/KioskModule';
-import UpdateModule from '../utils/UpdateModule';
 import { WebView } from 'react-native-webview';
 import type {
   WebViewErrorEvent,
   ShouldStartLoadRequest,
   WebViewRenderProcessGoneEvent,
 } from 'react-native-webview/lib/WebViewTypes';
-import { useNavigation } from '@react-navigation/native';
 import PrintModule from '../utils/PrintModule';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/AppNavigator';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RC_THEME } from '../theme/relicCommanderTheme';
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface WebViewComponentProps {
   url: string;
@@ -116,7 +107,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     },
     ref,
   ) => {
-    const navigation = useNavigation<NavigationProp>();
     const webViewRef = useRef<WebView>(null);
     // #190 — Host-view ref for pauseMedia/resumeMedia. react-native-webview's ref is a
     // methods-only imperative handle, NOT a ReactComponent: passing it to findNodeHandle
@@ -129,12 +119,8 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     const [blockedUrlMessage, setBlockedUrlMessage] = useState<string | null>(
       null,
     );
-    // App version for the error-overlay footer — read from the installed APK (build.gradle)
-    // via UpdateModule rather than hardcoded, so it never drifts on release bumps.
-    const [appVersion, setAppVersion] = useState<string>('');
     const blockedUrlTimerRef = useRef<any>(null);
     const isGoingBackRef = useRef<boolean>(false); // Prevent goBack loop for URL filter
-    const fadeAnim = useRef(new Animated.Value(0)).current;
     const loadingTimeoutRef = useRef<any>(null);
     // Last top-frame (main document) URL requested — used to distinguish a fatal
     // main-page HTTP error from a harmless sub-resource error (favicon, analytics…).
@@ -295,21 +281,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         } catch {}
       },
     }));
-
-    React.useEffect(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-    }, [fadeAnim]);
-
-    // Fetch the installed app version once for the error-overlay footer.
-    React.useEffect(() => {
-      UpdateModule.getCurrentVersion()
-        .then(info => setAppVersion(info.versionName))
-        .catch(() => {});
-    }, []);
 
     // Execute JavaScript from API — with retry if page is still loading
     React.useEffect(() => {
@@ -930,85 +901,34 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       setPageLoaded(false);
     };
 
-    const handleNavigateToSettings = (): void => {
-      navigation.navigate('Pin');
-    };
-
-    const handleOpenGitHub = (): void => {
-      Linking.openURL('https://github.com/rushb-fr/freekiosk').catch(err =>
-        console.error('[FreeKiosk] Failed to open GitHub URL:', err),
-      );
-    };
-
     if (!url) {
       return (
         <View style={styles.welcomeContainer}>
-          <ScrollView
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <Animated.View
-              style={[styles.welcomeContent, { opacity: fadeAnim }]}
-            >
-              {/* Logo / Icon */}
-              <View style={styles.logoContainer}>
-                <View style={styles.logoCircle}>
-                  <Image
-                    source={require('../assets/images/logo_circle.png')}
-                    style={styles.logoImage}
-                    resizeMode="contain"
-                  />
-                </View>
-              </View>
+          <Image
+            accessibilityLabel="Relic Commander Terminal"
+            source={require('../../img/rc-terminal.png')}
+            resizeMode="contain"
+            style={styles.welcomeLogo}
+          />
 
-              {/* Title */}
-              <Text style={styles.welcomeTitle}>FreeKiosk</Text>
-              <Text style={styles.welcomeSubtitle}>
-                Professional Kiosk Application
-              </Text>
-
-              {/* Features List */}
-              <View style={styles.featuresList}>
-                <FeatureItem icon="🔒" text="Secure kiosk mode" />
-                <FeatureItem icon="⚡" text="Optimal performance" />
-                <FeatureItem icon="🎯" text="100% free & open source" />
-              </View>
-
-              {/* Action Button */}
-              <TouchableOpacity
-                style={styles.setupButton}
-                onPress={handleNavigateToSettings}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.setupButtonText}>
-                  🚀 Start Configuration
-                </Text>
-              </TouchableOpacity>
-
-              {/* GitHub Support Button */}
-              <TouchableOpacity
-                style={styles.githubButton}
-                onPress={handleOpenGitHub}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.githubButtonText}>
-                  ⭐ Support us on GitHub
-                </Text>
-              </TouchableOpacity>
-
-              {/* Hint */}
-              <View style={styles.hintContainer}>
-                <Text style={styles.hintText}>
-                  💡 Tip: Tap 5× anywhere on the screen to access settings
-                </Text>
-              </View>
-
-              {/* Footer */}
-              <Text style={styles.footerText}>
-                {appVersion ? `Version ${appVersion} • by Rushb` : 'by Rushb'}
-              </Text>
-            </Animated.View>
-          </ScrollView>
+          {/* Preserve the configured secret admin gesture without advertising it. */}
+          <TouchableOpacity
+            testID="welcome-admin-hotspot"
+            style={styles.adminHotspot}
+            activeOpacity={1}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            onPress={() => {
+              if (onUserInteraction) {
+                onUserInteraction({
+                  isTap: true,
+                  x: 0,
+                  y: 0,
+                  fromAdminHotspot: true,
+                });
+              }
+            }}
+          />
         </View>
       );
     }
@@ -1436,142 +1356,20 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
   },
 );
 
-const FeatureItem: React.FC<{ icon: string; text: string }> = ({
-  icon,
-  text,
-}) => (
-  <View style={styles.featureItem}>
-    <Text style={styles.featureIcon}>{icon}</Text>
-    <Text style={styles.featureText}>{text}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   // WELCOME SCREEN STYLES
   welcomeContainer: {
     flex: 1,
-    backgroundColor: '#0066cc',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 24,
-  },
-  welcomeContent: {
-    width: '100%',
-    maxWidth: 500,
-    alignSelf: 'center',
-    alignItems: 'center',
-  },
-  logoContainer: {
-    marginBottom: 32,
-  },
-  logoCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    backgroundColor: RC_THEME.colors.background,
+    padding: 24,
   },
-  logoImage: {
-    width: 80,
-    height: 80,
-    tintColor: undefined,
-  },
-  welcomeTitle: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    fontSize: 18,
-    color: 'rgba(255, 255, 255, 0.9)',
-    marginBottom: 48,
-    textAlign: 'center',
-  },
-  featuresList: {
-    width: '100%',
-    marginBottom: 40,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  featureIcon: {
-    fontSize: 24,
-    marginRight: 16,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '500',
-    flex: 1,
-  },
-  setupButton: {
-    backgroundColor: '#fff',
-    paddingVertical: 18,
-    paddingHorizontal: 40,
-    borderRadius: 12,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    marginBottom: 24,
-  },
-  setupButtonText: {
-    color: '#0066cc',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  hintContainer: {
-    marginTop: 8,
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  hintText: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  githubButton: {
-    marginTop: 20,
-    marginBottom: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
-    alignItems: 'center',
-  },
-  githubButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footerText: {
-    marginTop: 32,
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
-    textAlign: 'center',
+  welcomeLogo: {
+    width: '92%',
+    height: '92%',
+    maxWidth: 720,
+    maxHeight: 720,
   },
 
   // WEBVIEW STYLES
