@@ -120,3 +120,39 @@ describe('RC Terminal Android wallpaper', () => {
     );
   });
 });
+
+describe('RC Terminal tablet layout', () => {
+  it('provides dedicated landscape layouts for customer and admin screens', () => {
+    const quickSettings = readProjectFile(
+      'src/components/KioskQuickSettingsDialog.tsx',
+    );
+    const webView = readProjectFile('src/components/WebViewComponent.tsx');
+    const wifi = readProjectFile('src/components/WifiDialog.tsx');
+    const bluetooth = readProjectFile('src/components/BluetoothDialog.tsx');
+    const pin = readProjectFile('src/components/PinInput.tsx');
+
+    expect(quickSettings).toContain('dialogBodyLandscape');
+    expect(webView).toContain('errorCardLandscape');
+    expect(wifi).toContain('headerLandscape');
+    expect(bluetooth).toContain('headerLandscape');
+    expect(pin).toContain('primaryContentLandscape');
+    expect(pin).toContain('quickBtnLandscape');
+  });
+
+  it('disables user zoom natively without rewriting the website viewport', () => {
+    const webView = readProjectFile('src/components/WebViewComponent.tsx');
+    const manifest = readProjectFile(
+      'android/app/src/main/AndroidManifest.xml',
+    );
+
+    expect(webView).toContain('setBuiltInZoomControls={!disableUserZoom}');
+    expect(webView).not.toContain('scalesPageToFit=');
+    expect(webView).not.toContain('textZoom=');
+    expect(webView).not.toContain('document.documentElement.style.zoom');
+    expect(webView).not.toContain('document.body.style.zoom');
+    expect(webView).not.toContain(
+      "vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')",
+    );
+    expect(manifest).toContain('android:hardwareAccelerated="true"');
+  });
+});

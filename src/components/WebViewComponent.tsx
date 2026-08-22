@@ -15,6 +15,7 @@ import {
   Image,
   NativeModules,
   findNodeHandle,
+  useWindowDimensions,
 } from 'react-native';
 
 const { HttpServerModule } = NativeModules;
@@ -56,8 +57,6 @@ interface WebViewComponentProps {
   pdfViewerEnabled?: boolean; // Enable inline PDF viewing via PDF.js
   printEnabled?: boolean; // Enable window.print() interception for native printing
   printPaperSize?: string; // Default paper size: 'A4' | 'A5' | 'A3' | 'LETTER' | 'LEGAL'
-  zoomLevel?: number; // Zoom level percentage (50-200, default 100)
-  zoomMode?: string; // 'standard' (CSS zoom) | 'fit' (viewport reflow, #188)
   disableUserZoom?: boolean; // Prevent pinch-to-zoom and double-tap zoom
   customUserAgent?: string; // Custom User-Agent string (empty = native Android WebView UA)
   basicAuthCredential?: { username: string; password: string };
@@ -98,8 +97,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       pdfViewerEnabled = false,
       printEnabled = false,
       printPaperSize = 'A4',
-      zoomLevel = 100,
-      zoomMode = 'standard',
       disableUserZoom = false,
       customUserAgent = '',
       basicAuthCredential,
@@ -107,6 +104,8 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     },
     ref,
   ) => {
+    const { width, height } = useWindowDimensions();
+    const isLandscape = width > height;
     const webViewRef = useRef<WebView>(null);
     // #190 — Host-view ref for pauseMedia/resumeMedia. react-native-webview's ref is a
     // methods-only imperative handle, NOT a ReactComponent: passing it to findNodeHandle
@@ -345,54 +344,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       return;
     }
     window.__FREEKIOSK_INITIALIZED__ = true;
-
-    // ===== Web page zoom (#188) =====
-    // CSS zoom, but the target element differs:
-    //   'standard' -> document.documentElement (<html>). Good for most sites.
-    //   'fit'      -> document.body. This is exactly what HADashboard does
-    //                 (twanjaarsveld/HADashboard, MainActivity.applyCssZoom:
-    //                 'document.body.style.zoom = factor'). Home Assistant measures
-    //                 its card layout from the body's content box, so zooming the
-    //                 body makes the dashboard RE-FLOW its columns and fill the
-    //                 screen, instead of just enlarging card contents inside cards
-    //                 that don't grow (which is what zooming <html> does). The native
-    //                 useWideViewPort + loadWithOverviewMode (scalesPageToFit) are
-    //                 already enabled, matching HADashboard's WebView settings.
-    (function() {
-      var ZOOM = ${zoomLevel} / 100;
-      var FIT = ${zoomMode === 'fit' ? 'true' : 'false'};
-      var DISABLE_USER_ZOOM = ${disableUserZoom ? 'true' : 'false'};
-
-      // Block pinch / double-tap zoom gestures when requested (applies in both modes).
-      if (DISABLE_USER_ZOOM) {
-        document.addEventListener('touchstart', function(e) {
-          if (e.touches.length > 1) { e.preventDefault(); }
-        }, { passive: false });
-        document.addEventListener('gesturestart', function(e) { e.preventDefault(); });
-        var vp = document.querySelector('meta[name="viewport"]');
-        if (!vp) {
-          vp = document.createElement('meta');
-          vp.setAttribute('name', 'viewport');
-          (document.head || document.documentElement).appendChild(vp);
-        }
-        vp.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
-      }
-
-      if (ZOOM !== 1) {
-        var applyZoom = function() {
-          if (FIT) {
-            if (document.body) { document.body.style.zoom = String(ZOOM); }
-          } else {
-            document.documentElement.style.zoom = String(ZOOM);
-          }
-        };
-        applyZoom();
-        // body may not exist yet if injected very early — re-apply once on DOM ready.
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', applyZoom);
-        }
-      }
-    })();
 
     // Ensure storage is working properly
     try {
@@ -1173,8 +1124,6 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               }, 500);
             }
           }}
-          textZoom={100}
-          scalesPageToFit={true}
           cacheEnabled={true}
           incognito={false}
           sharedCookiesEnabled={true}
@@ -1233,6 +1182,10 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           allowUniversalAccessFromFileURLs={pdfViewerEnabled}
           allowFileAccessFromFileURLs={pdfViewerEnabled}
           nestedScrollEnabled={true}
+          // Only control user gestures. Relic Commander remains solely responsible
+          // for viewport, responsive density and page scale.
+          setBuiltInZoomControls={!disableUserZoom}
+          setDisplayZoomControls={false}
           mediaPlaybackRequiresUserAction={false}
           allowsInlineMediaPlayback={true}
           // RC Terminal has no camera/microphone use case. Deny capture explicitly;
@@ -1277,76 +1230,103 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
         {error && (
           <View style={styles.errorContainer}>
-            <View style={styles.errorCard}>
+            <View
+              style={[
+                styles.errorCard,
+                isLandscape && styles.errorCardLandscape,
+              ]}
+            >
               <Image
                 accessibilityLabel="Relic Commander Terminal"
                 source={require('../../img/rc-terminal.png')}
                 resizeMode="contain"
-                style={styles.errorTerminalLogo}
+                style={[
+                  styles.errorTerminalLogo,
+                  isLandscape && styles.errorTerminalLogoLandscape,
+                ]}
               />
-              <Text style={styles.errorEyebrow}>RELIC COMMANDER TERMINAL</Text>
-              <Text style={styles.errorText}>Connection unavailable</Text>
-              <Text style={styles.errorLead}>
-                Relic Commander could not be reached.
-              </Text>
-
-              <View style={styles.wifiHelpCard}>
-                <MaterialCommunityIcons
-                  name="wifi-cog"
-                  size={24}
-                  color={RC_THEME.colors.accentBright}
-                />
-                <Text style={styles.wifiHelpText}>
-                  Connect this tablet to Wi-Fi, then try reaching Relic
-                  Commander again.
+              <View style={styles.errorContent}>
+                <Text style={styles.errorEyebrow}>
+                  RELIC COMMANDER TERMINAL
                 </Text>
-              </View>
+                <Text style={styles.errorText}>Connection unavailable</Text>
+                <Text style={styles.errorLead}>
+                  Relic Commander could not be reached.
+                </Text>
 
-              <Text style={styles.errorSubtext}>
-                If Wi-Fi is already connected, Relic Commander may be
-                temporarily unavailable.
-              </Text>
-
-              {autoReload && (
-                <View style={styles.autoRetryRow}>
-                  <MaterialCommunityIcons
-                    name="sync"
-                    size={16}
-                    color={RC_THEME.colors.textMuted}
-                  />
-                  <Text style={styles.helpText}>
-                    We will keep trying automatically.
-                  </Text>
-                </View>
-              )}
-
-              <TouchableOpacity
-                style={styles.reloadButton}
-                onPress={handleReload}
-              >
-                <MaterialCommunityIcons
-                  name="refresh"
-                  size={19}
-                  color={RC_THEME.colors.textInverse}
-                />
-                <Text style={styles.reloadText}>Try again now</Text>
-              </TouchableOpacity>
-
-              {onOpenWifiSettings && (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="Open Wi-Fi settings"
-                  style={styles.wifiSettingsButton}
-                  onPress={onOpenWifiSettings}
-                >
+                <View style={styles.wifiHelpCard}>
                   <MaterialCommunityIcons
                     name="wifi-cog"
-                    size={19}
+                    size={24}
                     color={RC_THEME.colors.accentBright}
                   />
-                  <Text style={styles.wifiSettingsText}>Wi-Fi settings</Text>
-                </TouchableOpacity>
-              )}
+                  <Text style={styles.wifiHelpText}>
+                    Connect this tablet to Wi-Fi, then try reaching Relic
+                    Commander again.
+                  </Text>
+                </View>
+
+                <Text style={styles.errorSubtext}>
+                  If Wi-Fi is already connected, Relic Commander may be
+                  temporarily unavailable.
+                </Text>
+
+                {autoReload && (
+                  <View style={styles.autoRetryRow}>
+                    <MaterialCommunityIcons
+                      name="sync"
+                      size={16}
+                      color={RC_THEME.colors.textMuted}
+                    />
+                    <Text style={styles.helpText}>
+                      We will keep trying automatically.
+                    </Text>
+                  </View>
+                )}
+
+                <View
+                  style={[
+                    styles.errorActions,
+                    isLandscape && styles.errorActionsLandscape,
+                  ]}
+                >
+                  <TouchableOpacity
+                    style={[
+                      styles.reloadButton,
+                      isLandscape && styles.errorActionLandscape,
+                    ]}
+                    onPress={handleReload}
+                  >
+                    <MaterialCommunityIcons
+                      name="refresh"
+                      size={19}
+                      color={RC_THEME.colors.textInverse}
+                    />
+                    <Text style={styles.reloadText}>Try again now</Text>
+                  </TouchableOpacity>
+
+                  {onOpenWifiSettings && (
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel="Open Wi-Fi settings"
+                      style={[
+                        styles.wifiSettingsButton,
+                        isLandscape && styles.errorActionLandscape,
+                      ]}
+                      onPress={onOpenWifiSettings}
+                    >
+                      <MaterialCommunityIcons
+                        name="wifi-cog"
+                        size={19}
+                        color={RC_THEME.colors.accentBright}
+                      />
+                      <Text style={styles.wifiSettingsText}>
+                        Wi-Fi settings
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
             </View>
 
             {/* Invisible admin-only hotspot: five taps still open the protected PIN screen. */}
@@ -1464,12 +1444,30 @@ const styles = StyleSheet.create({
     backgroundColor: RC_THEME.colors.surfaceCard,
     ...RC_THEME.shadow.card,
   },
+  errorCardLandscape: {
+    maxWidth: 900,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 28,
+    paddingHorizontal: 30,
+    paddingVertical: 22,
+  },
   errorTerminalLogo: {
     width: '100%',
     maxWidth: 272,
     aspectRatio: 1,
     alignSelf: 'center',
     marginBottom: 14,
+  },
+  errorTerminalLogoLandscape: {
+    width: 260,
+    height: 260,
+    marginBottom: 0,
+  },
+  errorContent: {
+    flex: 1,
+    width: '100%',
+    alignItems: 'center',
   },
   errorEyebrow: {
     marginBottom: 5,
@@ -1525,6 +1523,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     marginTop: 12,
+  },
+  errorActions: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  errorActionsLandscape: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  errorActionLandscape: {
+    flex: 1,
+    minWidth: 0,
+    marginTop: 20,
   },
   helpText: {
     color: RC_THEME.colors.textMuted,

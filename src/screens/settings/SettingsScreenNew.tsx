@@ -218,9 +218,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   const [printEnabled, setPrintEnabled] = useState<boolean>(false);
   const [printPaperSize, setPrintPaperSize] = useState<string>('A4');
   
-  // WebView Zoom Level
-  const [zoomLevel, setZoomLevel] = useState<number>(100);
-  const [zoomMode, setZoomMode] = useState<string>('standard');
   const [disableUserZoom, setDisableUserZoom] = useState<boolean>(
     FORK_DEFAULTS.disableUserZoom,
   );
@@ -691,11 +688,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
     // Dashboard settings
     const savedDashboardModeEnabled = await StorageService.getDashboardModeEnabled();
     setDashboardModeEnabled(savedDashboardModeEnabled);
-    // WebView Zoom Level
-    const savedZoomLevel = await StorageService.getWebViewZoomLevel();
-    setZoomLevel(savedZoomLevel);
-    const savedZoomMode = await StorageService.getWebViewZoomMode();
-    setZoomMode(savedZoomMode);
     const savedDisableUserZoom = await StorageService.getDisableUserZoom();
     setDisableUserZoom(savedDisableUserZoom);
 
@@ -1487,8 +1479,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
     const timerDelay = parseInt(backButtonTimerDelay, 10);
     await StorageService.saveBackButtonTimerDelay(isNaN(timerDelay) ? 10 : Math.max(1, Math.min(3600, timerDelay)));
     await StorageService.saveKeyboardMode(keyboardMode);
-    await StorageService.saveWebViewZoomLevel(zoomLevel);
-    await StorageService.saveWebViewZoomMode(zoomMode);
     await StorageService.saveDisableUserZoom(disableUserZoom);
     await StorageService.saveCustomUserAgent(customUserAgent);
     await StorageService.savePauseWebMediaWhenHidden(pauseWebMediaWhenHidden);
@@ -2034,10 +2024,6 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
             }}
             keyboardMode={keyboardMode}
             onKeyboardModeChange={setKeyboardMode}
-            zoomLevel={zoomLevel}
-            onZoomLevelChange={setZoomLevel}
-            zoomMode={zoomMode}
-            onZoomModeChange={setZoomMode}
             disableUserZoom={disableUserZoom}
             onDisableUserZoomChange={setDisableUserZoom}
             customUserAgent={customUserAgent}

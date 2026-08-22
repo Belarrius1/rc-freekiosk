@@ -69,11 +69,7 @@ interface DisplayTabProps {
   keyboardMode: string;
   onKeyboardModeChange: (value: string) => void;
   
-  // WebView Zoom Level
-  zoomLevel: number;
-  onZoomLevelChange: (value: number) => void;
-  zoomMode: string;
-  onZoomModeChange: (value: string) => void;
+  // User zoom gestures (website controls its own viewport and scale)
   disableUserZoom: boolean;
   onDisableUserZoomChange: (value: boolean) => void;
   
@@ -169,10 +165,6 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
   onStatusBarThemeChange,
   keyboardMode,
   onKeyboardModeChange,
-  zoomLevel,
-  onZoomLevelChange,
-  zoomMode,
-  onZoomModeChange,
   disableUserZoom,
   onDisableUserZoomChange,
   customUserAgent,
@@ -861,59 +853,12 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
         )}
       </SettingsSection>
       
-      {/* Web Page Zoom - Only in WebView mode */}
+      {/* User zoom gestures - the website owns viewport and page scale */}
       {displayMode === 'webview' && (
-        <SettingsSection title="Web Page Zoom" icon="magnify">
-          <SettingsRadioGroup
-            hint="How the zoom level is applied to the page"
-            options={[
-              {
-                value: 'standard',
-                label: 'Standard',
-                hint: 'Zooms the whole document (html). Recommended for most websites.',
-              },
-              {
-                value: 'fit',
-                label: 'Home Assistant',
-                hint: 'Zooms the page body instead, the same way HADashboard does — Home Assistant dashboards re-flow their cards and fill the screen.',
-              },
-            ]}
-            value={zoomMode}
-            onValueChange={onZoomModeChange}
-          />
-          {zoomMode === 'fit' && (
-            <SettingsInfoBox variant="info">
-              <Text style={styles.infoText}>
-                🏠 Home Assistant mode zooms the page body (the HADashboard method), so dashboards re-flow and fill the screen instead of cards overflowing. If a non-HA site looks off, switch back to "Standard".
-              </Text>
-            </SettingsInfoBox>
-          )}
-          <SettingsSlider
-            label=""
-            hint={`Zoom level: ${zoomLevel}% — Adjusts how web pages are rendered. 100% matches Chrome's default.`}
-            value={zoomLevel}
-            onValueChange={(val) => onZoomLevelChange(Math.round(val))}
-            minimumValue={50}
-            maximumValue={200}
-            step={5}
-            formatValue={(val) => `${Math.round(val)}%`}
-            presets={[
-              { label: '75%', value: 75 },
-              { label: '100%', value: 100 },
-              { label: '125%', value: 125 },
-              { label: '150%', value: 150 },
-            ]}
-          />
-          {zoomLevel !== 100 && (
-            <SettingsInfoBox variant="info">
-              <Text style={styles.infoText}>
-                🔍 Zoom is set to {zoomLevel}%. Tap the "100%" preset to reset to default.
-              </Text>
-            </SettingsInfoBox>
-          )}
+        <SettingsSection title="Web Page Interaction" icon="magnify">
           <SettingsSwitch
             label="Disable User Zoom"
-            hint="Prevent pinch-to-zoom and double-tap zoom on the web page. The admin zoom level above still applies."
+            hint="Prevent pinch-to-zoom and double-tap zoom. Page scale and responsive layout remain entirely controlled by the website."
             value={disableUserZoom}
             onValueChange={onDisableUserZoomChange}
           />

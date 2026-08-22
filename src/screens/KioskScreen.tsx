@@ -309,8 +309,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [pdfViewerEnabled, setPdfViewerEnabled] = useState<boolean>(false);
   const [printEnabled, setPrintEnabled] = useState<boolean>(false);
   const [printPaperSize, setPrintPaperSize] = useState<string>('A4');
-  const [zoomLevel, setZoomLevel] = useState<number>(100);
-  const [zoomMode, setZoomMode] = useState<string>('standard');
   const [disableUserZoom, setDisableUserZoom] = useState<boolean>(
     FORK_DEFAULTS.disableUserZoom,
   );
@@ -2169,14 +2167,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedPrintPaperSize = str(K.PRINT_PAPER_SIZE) ?? 'A4';
       setPrintPaperSize(savedPrintPaperSize);
 
-      // Load WebView Zoom Level
-      const savedZoomLevel = num(K.WEBVIEW_ZOOM_LEVEL, 100);
-      setZoomLevel(savedZoomLevel);
-
-      // Load WebView Zoom Mode (#188)
-      const savedZoomMode = str(K.WEBVIEW_ZOOM_MODE) ?? 'standard';
-      setZoomMode(savedZoomMode);
-
       // Load Disable User Zoom
       const savedDisableUserZoom = bool(
         K.DISABLE_USER_ZOOM,
@@ -3388,8 +3378,6 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
               pdfViewerEnabled={pdfViewerEnabled}
               printEnabled={printEnabled}
               printPaperSize={printPaperSize}
-              zoomLevel={zoomLevel}
-              zoomMode={zoomMode}
               disableUserZoom={disableUserZoom}
               customUserAgent={customUserAgent}
               basicAuthCredential={

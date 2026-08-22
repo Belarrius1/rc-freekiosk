@@ -25,6 +25,7 @@ import {
   DeviceEventEmitter,
   Alert,
   Keyboard,
+  useWindowDimensions,
 } from 'react-native';
 import { NativeModules } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -67,6 +68,8 @@ const wait = (durationMs: number) =>
   new Promise<void>(resolve => setTimeout(resolve, durationMs));
 
 export default function WifiDialog({ visible, onClose }: Props) {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const [wifiInfo, setWifiInfo] = useState<WifiInfo | null>(null);
   const [networks, setNetworks] = useState<WifiNetwork[]>([]);
   const [scanning, setScanning] = useState(false);
@@ -385,7 +388,7 @@ export default function WifiDialog({ visible, onClose }: Props) {
     >
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isLandscape && styles.headerLandscape]}>
           <View style={styles.headerTitleRow}>
             <MaterialCommunityIcons
               name="wifi-cog"
@@ -616,6 +619,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: RC_THEME.colors.borderStrong,
   },
+  headerLandscape: {
+    paddingTop: 18,
+    paddingBottom: 12,
+  },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -657,6 +664,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: RC_THEME.colors.border,
     borderRadius: RC_THEME.radius.large,
+    width: '92%',
+    maxWidth: 900,
+    alignSelf: 'center',
+    marginHorizontal: 0,
   },
   toggleLabel: {
     fontSize: 18,
@@ -670,13 +681,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: RC_THEME.colors.successBackground,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     marginTop: 4,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: RC_THEME.colors.success,
     borderRadius: RC_THEME.radius.medium,
+    width: '92%',
+    maxWidth: 900,
+    alignSelf: 'center',
   },
   connectedText: {
     color: RC_THEME.colors.success,
@@ -705,13 +719,16 @@ const styles = StyleSheet.create({
   },
   scanBtn: {
     backgroundColor: RC_THEME.colors.primaryPressed,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     marginVertical: 12,
     paddingVertical: 14,
     borderWidth: 1,
     borderColor: RC_THEME.colors.primary,
     borderRadius: RC_THEME.radius.small,
     alignItems: 'center',
+    width: '92%',
+    maxWidth: 900,
+    alignSelf: 'center',
     ...RC_THEME.shadow.glow,
   },
   scanBtnDisabled: {
@@ -733,7 +750,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   listContent: {
-    paddingHorizontal: 16,
+    width: '92%',
+    maxWidth: 900,
+    alignSelf: 'center',
     paddingBottom: 24,
   },
   networkRow: {

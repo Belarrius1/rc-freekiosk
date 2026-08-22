@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -56,6 +57,8 @@ export default function KioskQuickSettingsDialog({
   onSelect,
 }: Props) {
   const [status, setStatus] = useState<QuickStatus>(EMPTY_STATUS);
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   useEffect(() => {
     if (!visible) return;
@@ -121,7 +124,10 @@ export default function KioskQuickSettingsDialog({
         activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity style={styles.card} activeOpacity={1}>
+        <TouchableOpacity
+          style={[styles.card, isLandscape && styles.cardLandscape]}
+          activeOpacity={1}
+        >
           <View style={styles.header}>
             <View>
               <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
@@ -143,67 +149,84 @@ export default function KioskQuickSettingsDialog({
             </TouchableOpacity>
           </View>
 
-          <Image
-            accessibilityLabel="Relic Commander Terminal"
-            source={require('../../img/rc-terminal.png')}
-            resizeMode="contain"
-            style={styles.terminalLogo}
-          />
+          <View
+            style={[
+              styles.dialogBody,
+              isLandscape && styles.dialogBodyLandscape,
+            ]}
+          >
+            <Image
+              accessibilityLabel="Relic Commander Terminal"
+              source={require('../../img/rc-terminal.png')}
+              resizeMode="contain"
+              style={[
+                styles.terminalLogo,
+                isLandscape && styles.terminalLogoLandscape,
+              ]}
+            />
 
-          <View style={styles.statusRow}>
-            <View style={styles.statusItem}>
-              <MaterialCommunityIcons
-                name={status.isCharging ? 'battery-charging' : 'battery'}
-                size={20}
-                color={RC_THEME.colors.accentBright}
-              />
-              <Text style={styles.statusLabel}>Battery</Text>
-              <Text style={styles.statusValue}>{batteryLabel}</Text>
-            </View>
-            <View style={styles.statusItem}>
-              <MaterialCommunityIcons
-                name={status.wifiConnected ? 'wifi' : 'wifi-off'}
-                size={20}
-                color={
-                  status.wifiConnected
-                    ? RC_THEME.colors.success
-                    : RC_THEME.colors.danger
-                }
-              />
-              <Text style={styles.statusLabel}>Wi-Fi</Text>
-              <Text style={styles.statusValue} numberOfLines={1}>
-                {wifiLabel}
-              </Text>
-            </View>
-            <View style={styles.statusItem}>
-              <MaterialCommunityIcons
-                name="brightness-6"
-                size={20}
-                color={RC_THEME.colors.accentBright}
-              />
-              <Text style={styles.statusLabel}>Brightness</Text>
-              <Text style={styles.statusValue}>{brightnessLabel}</Text>
-            </View>
-          </View>
+            <View
+              style={[
+                styles.controlsColumn,
+                isLandscape && styles.controlsColumnLandscape,
+              ]}
+            >
+              <View style={styles.statusRow}>
+                <View style={styles.statusItem}>
+                  <MaterialCommunityIcons
+                    name={status.isCharging ? 'battery-charging' : 'battery'}
+                    size={20}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                  <Text style={styles.statusLabel}>Battery</Text>
+                  <Text style={styles.statusValue}>{batteryLabel}</Text>
+                </View>
+                <View style={styles.statusItem}>
+                  <MaterialCommunityIcons
+                    name={status.wifiConnected ? 'wifi' : 'wifi-off'}
+                    size={20}
+                    color={
+                      status.wifiConnected
+                        ? RC_THEME.colors.success
+                        : RC_THEME.colors.danger
+                    }
+                  />
+                  <Text style={styles.statusLabel}>Wi-Fi</Text>
+                  <Text style={styles.statusValue} numberOfLines={1}>
+                    {wifiLabel}
+                  </Text>
+                </View>
+                <View style={styles.statusItem}>
+                  <MaterialCommunityIcons
+                    name="brightness-6"
+                    size={20}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                  <Text style={styles.statusLabel}>Brightness</Text>
+                  <Text style={styles.statusValue}>{brightnessLabel}</Text>
+                </View>
+              </View>
 
-          <View style={styles.grid}>
-            {QUICK_SETTINGS.map(setting => (
-              <TouchableOpacity
-                key={setting.key}
-                accessibilityRole="button"
-                accessibilityLabel={`Configure ${setting.label}`}
-                activeOpacity={0.75}
-                style={styles.settingButton}
-                onPress={() => onSelect(setting.key)}
-              >
-                <MaterialCommunityIcons
-                  name={setting.icon}
-                  size={30}
-                  color={RC_THEME.colors.accentBright}
-                />
-                <Text style={styles.settingLabel}>{setting.label}</Text>
-              </TouchableOpacity>
-            ))}
+              <View style={styles.grid}>
+                {QUICK_SETTINGS.map(setting => (
+                  <TouchableOpacity
+                    key={setting.key}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Configure ${setting.label}`}
+                    activeOpacity={0.75}
+                    style={styles.settingButton}
+                    onPress={() => onSelect(setting.key)}
+                  >
+                    <MaterialCommunityIcons
+                      name={setting.icon}
+                      size={30}
+                      color={RC_THEME.colors.accentBright}
+                    />
+                    <Text style={styles.settingLabel}>{setting.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -228,6 +251,11 @@ const styles = StyleSheet.create({
     borderRadius: RC_THEME.radius.large,
     backgroundColor: RC_THEME.colors.surfaceCard,
     ...RC_THEME.shadow.card,
+  },
+  cardLandscape: {
+    maxWidth: 880,
+    paddingHorizontal: 22,
+    paddingVertical: 16,
   },
   header: {
     flexDirection: 'row',
@@ -272,6 +300,27 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: -4,
     marginBottom: 14,
+  },
+  dialogBody: {
+    width: '100%',
+  },
+  dialogBodyLandscape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 24,
+  },
+  terminalLogoLandscape: {
+    width: 250,
+    height: 250,
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  controlsColumn: {
+    width: '100%',
+  },
+  controlsColumnLandscape: {
+    flex: 1,
+    width: 'auto',
   },
   statusRow: {
     flexDirection: 'row',

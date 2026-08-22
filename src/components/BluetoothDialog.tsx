@@ -18,6 +18,7 @@ import {
   Switch,
   DeviceEventEmitter,
   Alert,
+  useWindowDimensions,
 } from 'react-native';
 import { NativeModules } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -46,6 +47,8 @@ interface Props {
 }
 
 export default function BluetoothDialog({ visible, onClose }: Props) {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const [btInfo, setBtInfo] = useState<BTInfo | null>(null);
   const [discoveredDevices, setDiscoveredDevices] = useState<BTDevice[]>([]);
   const [discovering, setDiscovering] = useState(false);
@@ -421,7 +424,7 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
     >
       <View style={styles.container}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isLandscape && styles.headerLandscape]}>
           <View style={styles.headerTitleRow}>
             <MaterialCommunityIcons
               name="bluetooth"
@@ -575,6 +578,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: RC_THEME.colors.borderStrong,
   },
+  headerLandscape: {
+    paddingTop: 18,
+    paddingBottom: 12,
+  },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,6 +623,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: RC_THEME.colors.border,
     borderRadius: RC_THEME.radius.large,
+    width: '92%',
+    maxWidth: 900,
+    alignSelf: 'center',
+    marginHorizontal: 0,
   },
   toggleLabel: {
     fontSize: 18,
@@ -665,6 +676,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   listContent: {
+    width: '92%',
+    maxWidth: 900,
+    alignSelf: 'center',
     paddingBottom: 24,
   },
   deviceRow: {
@@ -674,7 +688,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: RC_THEME.colors.border,
     borderRadius: RC_THEME.radius.medium,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     marginBottom: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,

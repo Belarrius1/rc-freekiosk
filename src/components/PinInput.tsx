@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   NativeModules,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import {
   verifySecurePin,
@@ -36,6 +37,8 @@ interface PinInputProps {
 }
 
 const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const [pin, setPin] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLockedOut, setIsLockedOut] = useState<boolean>(false);
@@ -303,97 +306,123 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.brandHeader}>
-        <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
-        <Text style={styles.brandTitle}>Admin authorization</Text>
-        <Text style={styles.brandSubtitle}>RESTRICTED DEVICE CONTROL</Text>
-      </View>
-
-      <View style={styles.authCard}>
-        <View style={styles.lockIconShell}>
-          <MaterialCommunityIcons
-            name="shield-lock-outline"
-            size={34}
-            color={RC_THEME.colors.accentBright}
-          />
+      <View
+        style={[
+          styles.primaryContent,
+          isLandscape && styles.primaryContentLandscape,
+        ]}
+      >
+        <View
+          style={[
+            styles.brandHeader,
+            isLandscape && styles.brandHeaderLandscape,
+          ]}
+        >
+          <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
+          <Text style={styles.brandTitle}>Admin authorization</Text>
+          <Text style={styles.brandSubtitle}>RESTRICTED DEVICE CONTROL</Text>
         </View>
-        <Text style={styles.title}>
-          {pinMode === 'alphanumeric' ? 'Enter password' : 'Enter PIN code'}
-        </Text>
 
-        {isLockedOut ? (
-          <>
-            <View style={styles.lockoutContainer}>
-              <MaterialCommunityIcons
-                name="lock-alert"
-                size={46}
-                color={RC_THEME.colors.danger}
-                style={styles.lockoutIcon}
-              />
-              <Text style={styles.lockoutTitle}>Account Locked</Text>
-              <Text style={styles.lockoutText}>Too many failed attempts</Text>
-              <Text style={styles.lockoutTimer}>
-                Retry in: {formatTime(lockoutTimeRemaining)}
-              </Text>
-            </View>
-          </>
-        ) : (
-          <>
-            {!hasPinConfigured && (
-              <Text style={styles.subtitle}>Default code: 1234</Text>
-            )}
+        <View
+          style={[styles.authCard, isLandscape && styles.authCardLandscape]}
+        >
+          <View style={styles.lockIconShell}>
+            <MaterialCommunityIcons
+              name="shield-lock-outline"
+              size={34}
+              color={RC_THEME.colors.accentBright}
+            />
+          </View>
+          <Text style={styles.title}>
+            {pinMode === 'alphanumeric' ? 'Enter password' : 'Enter PIN code'}
+          </Text>
 
-            {attemptsRemaining < 5 && (
-              <View style={styles.warningContainer}>
-                <Text style={styles.warningText}>
-                  ⚠️ {attemptsRemaining} attempts remaining
+          {isLockedOut ? (
+            <>
+              <View style={styles.lockoutContainer}>
+                <MaterialCommunityIcons
+                  name="lock-alert"
+                  size={46}
+                  color={RC_THEME.colors.danger}
+                  style={styles.lockoutIcon}
+                />
+                <Text style={styles.lockoutTitle}>Account Locked</Text>
+                <Text style={styles.lockoutText}>Too many failed attempts</Text>
+                <Text style={styles.lockoutTimer}>
+                  Retry in: {formatTime(lockoutTimeRemaining)}
                 </Text>
               </View>
-            )}
-
-            <TextInput
-              ref={inputRef}
-              style={[styles.input, isLoading && styles.inputDisabled]}
-              value={pin}
-              onChangeText={handlePinChange}
-              secureTextEntry={true}
-              keyboardType={pinMode === 'alphanumeric' ? 'default' : 'numeric'}
-              maxLength={pinMode === 'alphanumeric' ? undefined : 6}
-              placeholder={
-                pinMode === 'alphanumeric' ? 'Enter password' : '••••'
-              }
-              placeholderTextColor={RC_THEME.colors.textMuted}
-              autoCapitalize={pinMode === 'alphanumeric' ? 'none' : undefined}
-              autoCorrect={false}
-              autoComplete="off"
-              textContentType="none"
-              importantForAutofill="no"
-              editable={!isLoading && !isLockedOut}
-            />
-
-            <TouchableOpacity
-              style={[
-                styles.button,
-                (isLoading || isLockedOut) && styles.buttonDisabled,
-              ]}
-              onPress={handleSubmit}
-              disabled={isLoading || isLockedOut}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={RC_THEME.colors.textInverse} />
-              ) : (
-                <Text style={styles.buttonText}>Unlock settings</Text>
+            </>
+          ) : (
+            <>
+              {!hasPinConfigured && (
+                <Text style={styles.subtitle}>Default code: 1234</Text>
               )}
-            </TouchableOpacity>
-          </>
-        )}
+
+              {attemptsRemaining < 5 && (
+                <View style={styles.warningContainer}>
+                  <Text style={styles.warningText}>
+                    ⚠️ {attemptsRemaining} attempts remaining
+                  </Text>
+                </View>
+              )}
+
+              <TextInput
+                ref={inputRef}
+                style={[styles.input, isLoading && styles.inputDisabled]}
+                value={pin}
+                onChangeText={handlePinChange}
+                secureTextEntry={true}
+                keyboardType={
+                  pinMode === 'alphanumeric' ? 'default' : 'numeric'
+                }
+                maxLength={pinMode === 'alphanumeric' ? undefined : 6}
+                placeholder={
+                  pinMode === 'alphanumeric' ? 'Enter password' : '••••'
+                }
+                placeholderTextColor={RC_THEME.colors.textMuted}
+                autoCapitalize={
+                  pinMode === 'alphanumeric' ? 'none' : undefined
+                }
+                autoCorrect={false}
+                autoComplete="off"
+                textContentType="none"
+                importantForAutofill="no"
+                editable={!isLoading && !isLockedOut}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  (isLoading || isLockedOut) && styles.buttonDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={isLoading || isLockedOut}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={RC_THEME.colors.textInverse} />
+                ) : (
+                  <Text style={styles.buttonText}>Unlock settings</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {hasQuickControls && (
-        <View style={styles.quickControls}>
+        <View
+          style={[
+            styles.quickControls,
+            isLandscape && styles.quickControlsLandscape,
+          ]}
+        >
           {showWifiButton && (
             <TouchableOpacity
-              style={styles.quickBtn}
+              style={[
+                styles.quickBtn,
+                isLandscape && styles.quickBtnLandscape,
+              ]}
               onPress={() => setWifiDialogVisible(true)}
             >
               <MaterialCommunityIcons
@@ -407,7 +436,10 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
 
           {showBluetoothButton && (
             <TouchableOpacity
-              style={styles.quickBtn}
+              style={[
+                styles.quickBtn,
+                isLandscape && styles.quickBtnLandscape,
+              ]}
               onPress={() => setBluetoothDialogVisible(true)}
             >
               <MaterialCommunityIcons
@@ -421,7 +453,10 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
 
           {showAudioControls && (
             <TouchableOpacity
-              style={styles.quickBtn}
+              style={[
+                styles.quickBtn,
+                isLandscape && styles.quickBtnLandscape,
+              ]}
               onPress={handleAudioPress}
             >
               <MaterialCommunityIcons
@@ -435,7 +470,11 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
 
           {showFlashlightButton && flashlightAvailable && (
             <TouchableOpacity
-              style={[styles.quickBtn, flashlightOn && styles.quickBtnActive]}
+              style={[
+                styles.quickBtn,
+                isLandscape && styles.quickBtnLandscape,
+                flashlightOn && styles.quickBtnActive,
+              ]}
               onPress={handleFlashlightPress}
               disabled={flashlightBusy}
             >
@@ -456,7 +495,10 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
 
           {showBrightnessButton && (
             <TouchableOpacity
-              style={styles.quickBtn}
+              style={[
+                styles.quickBtn,
+                isLandscape && styles.quickBtnLandscape,
+              ]}
               onPress={() => setBrightnessDialogVisible(true)}
             >
               <MaterialCommunityIcons
@@ -470,7 +512,11 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
 
           {showRotationLockButton && (
             <TouchableOpacity
-              style={[styles.quickBtn, rotationLocked && styles.quickBtnActive]}
+              style={[
+                styles.quickBtn,
+                isLandscape && styles.quickBtnLandscape,
+                rotationLocked && styles.quickBtnActive,
+              ]}
               onPress={handleRotationLockPress}
               disabled={rotationBusy}
             >
@@ -491,7 +537,11 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
 
           {showEmergencyButton && (
             <TouchableOpacity
-              style={[styles.quickBtn, styles.emergencyBtn]}
+              style={[
+                styles.quickBtn,
+                isLandscape && styles.quickBtnLandscape,
+                styles.emergencyBtn,
+              ]}
               onPress={handleEmergencyCall}
             >
               <MaterialCommunityIcons
@@ -541,9 +591,23 @@ const styles = StyleSheet.create({
     paddingTop: 82,
     paddingBottom: 24,
   },
+  primaryContent: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  primaryContentLandscape: {
+    maxWidth: 900,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 36,
+  },
   brandHeader: {
     alignItems: 'center',
     marginBottom: 18,
+  },
+  brandHeaderLandscape: {
+    width: 300,
+    marginBottom: 0,
   },
   eyebrow: {
     color: RC_THEME.colors.primary,
@@ -577,6 +641,10 @@ const styles = StyleSheet.create({
     borderRadius: RC_THEME.radius.large,
     backgroundColor: RC_THEME.colors.surfaceCard,
     ...RC_THEME.shadow.card,
+  },
+  authCardLandscape: {
+    flex: 1,
+    paddingVertical: 18,
   },
   lockIconShell: {
     width: 58,
@@ -702,6 +770,10 @@ const styles = StyleSheet.create({
     rowGap: 10,
     marginTop: 18,
   },
+  quickControlsLandscape: {
+    maxWidth: 760,
+    flexWrap: 'nowrap',
+  },
   quickBtn: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -713,6 +785,10 @@ const styles = StyleSheet.create({
     borderColor: RC_THEME.colors.border,
     borderRadius: RC_THEME.radius.medium,
     backgroundColor: RC_THEME.colors.surface,
+  },
+  quickBtnLandscape: {
+    width: '13%',
+    minHeight: 66,
   },
   quickBtnActive: {
     borderColor: RC_THEME.colors.warning,
