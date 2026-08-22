@@ -76,6 +76,7 @@ describe('RC-FreeKiosk release pipeline', () => {
     expect(workflow).toContain('RC_FREEKIOSK_KEYSTORE_BASE64');
     expect(workflow).toContain('RC_VERSION_NAME:');
     expect(workflow).toContain('RC_VERSION_CODE:');
+    expect(workflow).toContain('example: v0.9 or v1.0.0');
     expect(workflow).not.toContain('actions/upload-artifact');
     expect(workflow).toContain('gh release upload');
     expect(workflow).toContain('gh release create');
