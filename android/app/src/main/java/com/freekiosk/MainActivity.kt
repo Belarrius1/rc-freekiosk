@@ -152,6 +152,11 @@ class MainActivity : ReactActivity() {
   override fun onNewIntent(intent: Intent?) {
     super.onNewIntent(intent)
     setIntent(intent) // Important: update the intent
+
+    // `adb shell am start` can deliver configuration to the already-running
+    // activity instead of recreating it. Retry the idempotent wallpaper setup
+    // here as well so the provisioning pipeline always applies it.
+    RcWallpaperInstaller.applyIfChanged(applicationContext)
     
     // Handle ADB config on new intent too (when app is already running)
     // If returns true, the app will restart and we should not continue

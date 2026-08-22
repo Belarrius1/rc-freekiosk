@@ -107,6 +107,9 @@ describe('RC Terminal Android wallpaper', () => {
     expect(gradle).toContain("assets.srcDir rootProject.file('../img')");
     expect(activity).toContain('RcWallpaperInstaller.applyIfChanged');
     expect(installer).toContain('rc-terminal-wallpaper.png');
+    expect(installer).toContain('WallpaperManager.FLAG_SYSTEM');
+    expect(installer).toContain('WallpaperManager.FLAG_LOCK');
+    expect(installer).toContain('system-and-lock-v2');
     expect(
       fs.existsSync(
         path.resolve(__dirname, '..', 'img/rc-terminal-wallpaper.png'),
