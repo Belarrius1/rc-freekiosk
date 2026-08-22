@@ -1,5 +1,12 @@
 import React from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { RC_THEME } from '../theme/relicCommanderTheme';
 
@@ -44,7 +51,7 @@ export default function KioskQuickSettingsDialog({
         <TouchableOpacity style={styles.card} activeOpacity={1}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
               <Text style={styles.title}>Quick settings</Text>
               <Text style={styles.subtitle}>DEVICE CONTROL</Text>
             </View>
@@ -62,6 +69,13 @@ export default function KioskQuickSettingsDialog({
               />
             </TouchableOpacity>
           </View>
+
+          <Image
+            accessibilityLabel="Relic Commander Terminal"
+            source={require('../../img/rc-terminal.png')}
+            resizeMode="contain"
+            style={styles.terminalLogo}
+          />
 
           <View style={styles.grid}>
             {QUICK_SETTINGS.map(setting => (
@@ -141,6 +155,13 @@ const styles = StyleSheet.create({
     borderColor: RC_THEME.colors.border,
     borderRadius: RC_THEME.radius.pill,
     backgroundColor: RC_THEME.colors.surfaceInput,
+  },
+  terminalLogo: {
+    width: 132,
+    height: 132,
+    alignSelf: 'center',
+    marginTop: -4,
+    marginBottom: 16,
   },
   grid: {
     flexDirection: 'row',

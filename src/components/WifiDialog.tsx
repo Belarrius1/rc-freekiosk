@@ -24,6 +24,7 @@ import {
   Switch,
   DeviceEventEmitter,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { NativeModules } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -40,6 +41,7 @@ interface WifiNetwork {
   ssid: string;
   bssid: string;
   signalLevel: number; // 0–4
+  rssi: number;
   secured: boolean;
   capabilities: string;
 }
@@ -58,6 +60,11 @@ interface Props {
 }
 
 const SIGNAL_ICONS = ['▂___', '▂▄__', '▂▄▆_', '▂▄▆█'];
+
+const normalizeSsid = (ssid: string) => ssid.replace(/^"|"$/g, '').trim();
+
+const wait = (durationMs: number) =>
+  new Promise<void>(resolve => setTimeout(resolve, durationMs));
 
 export default function WifiDialog({ visible, onClose }: Props) {
   const [wifiInfo, setWifiInfo] = useState<WifiInfo | null>(null);
@@ -212,12 +219,40 @@ export default function WifiDialog({ visible, onClose }: Props) {
     }
   };
 
+  const closePasswordPrompt = () => {
+    Keyboard.dismiss();
+    setPasswordSsid(null);
+    setPassword('');
+    setShowPassword(false);
+  };
+
+  const waitForConnectedUiState = async (ssid: string) => {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      try {
+        const info: WifiInfo = await WifiControlModule.getWifiInfo();
+        setWifiInfo(info);
+        if (
+          info.isConnected &&
+          normalizeSsid(info.ssid) === normalizeSsid(ssid)
+        ) {
+          return true;
+        }
+      } catch (e) {
+        console.warn('[WifiDialog] connection status refresh error:', e);
+      }
+      await wait(500);
+    }
+    return false;
+  };
+
   const connectTo = async (
     ssid: string,
     pwd: string,
     usedSavedPassword = false,
   ) => {
+    Keyboard.dismiss();
     setPasswordSsid(null);
+    setShowPassword(false);
     setConnecting(ssid);
     connectingRef.current = ssid;
     try {
@@ -226,12 +261,28 @@ export default function WifiDialog({ visible, onClose }: Props) {
         if (pwd) {
           await saveSecureWifiPassword(ssid, pwd);
         }
-        await refresh();
+        const stateConfirmed = await waitForConnectedUiState(ssid);
+        if (!stateConfirmed) {
+          const selectedNetwork = networks.find(
+            network => normalizeSsid(network.ssid) === normalizeSsid(ssid),
+          );
+          // The native promise only succeeds after Android reports association.
+          // Some OEMs update the public active-network API a little later.
+          setWifiInfo({
+            isEnabled: true,
+            isConnected: true,
+            ssid: result.ssid || ssid,
+            signalLevel: selectedNetwork?.signalLevel ?? 0,
+            rssi: selectedNetwork?.rssi ?? 0,
+          });
+        }
+        setPassword('');
       } else {
         if (usedSavedPassword) {
           await clearSecureWifiPassword(ssid);
           setPasswordSsid(ssid);
           setPassword('');
+          setShowPassword(false);
           Alert.alert(
             'Saved Wi-Fi password failed',
             `Enter the password for "${ssid}" again.`,
@@ -245,6 +296,7 @@ export default function WifiDialog({ visible, onClose }: Props) {
         await clearSecureWifiPassword(ssid);
         setPasswordSsid(ssid);
         setPassword('');
+        setShowPassword(false);
         Alert.alert(
           'Saved Wi-Fi password failed',
           e?.message || `Enter the password for "${ssid}" again.`,
@@ -341,7 +393,7 @@ export default function WifiDialog({ visible, onClose }: Props) {
               color={RC_THEME.colors.accentBright}
             />
             <View>
-              <Text style={styles.headerEyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.headerEyebrow}>RELIC COMMANDER TERMINAL</Text>
               <Text style={styles.headerTitle}>Wi-Fi control</Text>
             </View>
           </View>
@@ -491,7 +543,7 @@ export default function WifiDialog({ visible, onClose }: Props) {
           visible
           transparent
           animationType="fade"
-          onRequestClose={() => setPasswordSsid(null)}
+          onRequestClose={closePasswordPrompt}
         >
           <View style={styles.pwdOverlay}>
             <View style={styles.pwdCard}>
@@ -525,7 +577,7 @@ export default function WifiDialog({ visible, onClose }: Props) {
               <View style={styles.pwdActions}>
                 <TouchableOpacity
                   style={styles.pwdCancel}
-                  onPress={() => setPasswordSsid(null)}
+                  onPress={closePasswordPrompt}
                 >
                   <Text style={styles.pwdCancelText}>Cancel</Text>
                 </TouchableOpacity>

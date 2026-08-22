@@ -459,12 +459,13 @@ class WifiControlModule(private val reactContext: ReactApplicationContext) :
 
         wifiManager.disconnect()
         val enabled = wifiManager.enableNetwork(netId, true)
-        wifiManager.reconnect()
+        val reconnecting = wifiManager.reconnect()
+        if (!enabled || !reconnecting) {
+            promise.reject("ENABLE_NETWORK_FAILED", "Android could not start the connection to \"$ssid\"")
+            return
+        }
 
-        val result = Arguments.createMap()
-        result.putBoolean("success", enabled)
-        result.putString("ssid", ssid)
-        promise.resolve(result)
+        waitForWifiAssociation(ssid, promise)
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -539,6 +540,46 @@ class WifiControlModule(private val reactContext: ReactApplicationContext) :
                     promise.reject(
                         "CONNECT_TIMEOUT",
                         "Android joined \"$currentSsid\" but did not validate \"$ssid\" as the default WiFi internet network"
+                    )
+                    return
+                }
+
+                mainHandler.postDelayed(this, 500)
+            }
+        }
+        mainHandler.post(activeWifiStatusPoll!!)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun waitForWifiAssociation(ssid: String, promise: Promise) {
+        val wifiManager = reactContext.applicationContext
+            .getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val startedAt = System.currentTimeMillis()
+        val timeoutMs = 20_000L
+
+        activeWifiStatusPoll?.let { mainHandler.removeCallbacks(it) }
+        activeWifiStatusPoll = object : Runnable {
+            override fun run() {
+                val info = wifiManager.connectionInfo
+                val currentSsid = info?.ssid?.replace("\"", "")?.trim().orEmpty()
+                val isAssociated =
+                    info?.supplicantState == android.net.wifi.SupplicantState.COMPLETED &&
+                        currentSsid == ssid
+
+                if (isAssociated) {
+                    activeWifiStatusPoll = null
+                    val result = Arguments.createMap()
+                    result.putBoolean("success", true)
+                    result.putString("ssid", ssid)
+                    promise.resolve(result)
+                    return
+                }
+
+                if (System.currentTimeMillis() - startedAt >= timeoutMs) {
+                    activeWifiStatusPoll = null
+                    promise.reject(
+                        "CONNECT_TIMEOUT",
+                        "Android did not join \"$ssid\". Check the WiFi password."
                     )
                     return
                 }

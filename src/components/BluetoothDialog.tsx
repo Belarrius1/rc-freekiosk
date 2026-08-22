@@ -429,7 +429,7 @@ export default function BluetoothDialog({ visible, onClose }: Props) {
               color={RC_THEME.colors.accentBright}
             />
             <View>
-              <Text style={styles.headerEyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.headerEyebrow}>RELIC COMMANDER TERMINAL</Text>
               <Text style={styles.headerTitle}>Bluetooth control</Text>
             </View>
           </View>

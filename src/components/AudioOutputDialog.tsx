@@ -100,7 +100,7 @@ export default function AudioOutputDialog({ visible, onClose }: Props) {
         <TouchableOpacity style={styles.card} activeOpacity={1}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
               <Text style={styles.title}>Audio control</Text>
             </View>
             <TouchableOpacity

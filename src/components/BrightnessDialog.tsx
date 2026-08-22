@@ -69,7 +69,7 @@ export default function BrightnessDialog({ visible, onClose }: Props) {
         <TouchableOpacity style={styles.card} activeOpacity={1}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>RELIC COMMANDER</Text>
+              <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
               <Text style={styles.title}>Screen brightness</Text>
             </View>
             <TouchableOpacity
