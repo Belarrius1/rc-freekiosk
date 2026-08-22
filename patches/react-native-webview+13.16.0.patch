@@ -1,16 +1,21 @@
 diff --git a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
-index 07f73fd..275f2cd 100644
+index 07f73fd..f795a40 100644
 --- a/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
 +++ b/node_modules/react-native-webview/android/src/main/java/com/reactnativecommunity/webview/RNCWebChromeClient.java
-@@ -144,72 +144,32 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
- 
+@@ -144,72 +144,31 @@ public class RNCWebChromeClient extends WebChromeClient implements LifecycleEven
+
      @Override
      public void onPermissionRequest(final PermissionRequest request) {
 -
 -        grantedPermissions = new ArrayList<>();
 -
 -        ArrayList<String> requestedAndroidPermissions = new ArrayList<>();
--        for (String requestedResource : request.getResources()) {
++        /**
++         * RC-FreeKiosk privacy profile: camera and microphone capture are never exposed
++         * to web content. Preserve protected-media playback only when explicitly enabled.
++         */
++        ArrayList<String> allowedResources = new ArrayList<>();
+         for (String requestedResource : request.getResources()) {
 -            String androidPermission = null;
 -
 -            if (requestedResource.equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
@@ -37,40 +42,28 @@ index 07f73fd..275f2cd 100644
 -                } else {
 -                    requestedAndroidPermissions.add(androidPermission);
 -                }
--            }
--        }
--
++            if (requestedResource.equals(PermissionRequest.RESOURCE_PROTECTED_MEDIA_ID)
++                    && mAllowsProtectedMedia) {
++                allowedResources.add(requestedResource);
+             }
+         }
+
 -        // If all the permissions are already granted, send the response to the WebView synchronously
 -        if (requestedAndroidPermissions.isEmpty()) {
 -            request.grant(grantedPermissions.toArray(new String[0]));
 -            grantedPermissions = null;
 -            return;
--        }
++        if (allowedResources.isEmpty()) {
++            request.deny();
++        } else {
++            request.grant(allowedResources.toArray(new String[0]));
+         }
 -
 -        // Otherwise, ask to Android System for native permissions asynchronously
 -
 -        this.permissionRequest = request;
 -
 -        requestPermissions(requestedAndroidPermissions);
-+        /**
-+         * FreeKiosk: Auto-grant all WebView media permission requests (camera, microphone,
-+         * protected media) without going through the native Android permission dialog.
-+         *
-+         * Why: On Fire OS (Amazon Echo Show, Fire tablets) and other non-standard Android
-+         * distributions, ContextCompat.checkSelfPermission() may return PERMISSION_DENIED
-+         * even when the permission was granted via `adb shell pm grant`. The subsequent
-+         * Activity.requestPermissions() dialog is then either suppressed or never shown,
-+         * causing getUserMedia() to fail silently.
-+         *
-+         * Since FreeKiosk is a kiosk app that:
-+         * - Already declares CAMERA and RECORD_AUDIO in AndroidManifest.xml
-+         * - Controls which URLs are loaded (URL filtering)
-+         * - Runs in a managed kiosk context where user consent is implied
-+         *
-+         * Auto-granting is the correct behavior. The actual hardware access is still
-+         * gated by the Android-level permission (granted via pm grant or Device Owner).
-+         */
-+        request.grant(request.getResources());
      }
  
  
@@ -91,8 +84,9 @@ index 07f73fd..275f2cd 100644
 -        } else {
 -            callback.invoke(origin, true, false);
 -        }
-+        // FreeKiosk: Auto-grant geolocation for kiosk mode (same Fire OS rationale as onPermissionRequest)
-+        callback.invoke(origin, true, false);
++        // RC-FreeKiosk keeps location permission only for Wi-Fi discovery. Web content
++        // must never receive the device's physical location.
++        callback.invoke(origin, false, false);
      }
  
      private PermissionAwareActivity getPermissionAwareActivity() {

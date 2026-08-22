@@ -46,7 +46,6 @@ FreeKiosk offers two main integration methods:
 - **40+ Endpoints** - Complete device control
 - **Device Status** - Real-time sensor data
 - **Navigation Control** - URL and app switching
-- **Media Capture** - Screenshot & camera access
 - **API Security** - Optional API key authentication
 
 ### Best For
@@ -68,8 +67,6 @@ curl -X POST -H "X-Api-Key: your-key" \
   -d '{"url":"https://new-dashboard.com"}' \
   http://tablet-ip:8080/api/url
 
-# Take screenshot
-curl -H "X-Api-Key: your-key" http://tablet-ip:8080/api/screenshot -o screenshot.png
 ```
 
 > [!TIP]

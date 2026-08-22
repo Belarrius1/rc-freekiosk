@@ -18,6 +18,7 @@ describe('Free Kiosk fork defaults', () => {
       disableUserZoom: true,
       blockFactoryReset: true,
       defaultLauncher: true,
+      restApiAllowControl: false,
     });
   });
 
@@ -27,6 +28,7 @@ describe('Free Kiosk fork defaults', () => {
     await expect(StorageService.getDisableUserZoom()).resolves.toBe(true);
     await expect(StorageService.getBlockFactoryReset()).resolves.toBe(true);
     await expect(StorageService.getDefaultLauncher()).resolves.toBe(true);
+    await expect(StorageService.getRestApiAllowControl()).resolves.toBe(false);
   });
 
   it('preserves explicit administrator preferences', async () => {
@@ -35,11 +37,13 @@ describe('Free Kiosk fork defaults', () => {
     await StorageService.saveDisableUserZoom(false);
     await StorageService.saveBlockFactoryReset(false);
     await StorageService.saveDefaultLauncher(false);
+    await StorageService.saveRestApiAllowControl(true);
 
     await expect(StorageService.getAutoReload()).resolves.toBe(false);
     await expect(StorageService.getKeepScreenOn()).resolves.toBe(true);
     await expect(StorageService.getDisableUserZoom()).resolves.toBe(false);
     await expect(StorageService.getBlockFactoryReset()).resolves.toBe(false);
     await expect(StorageService.getDefaultLauncher()).resolves.toBe(false);
+    await expect(StorageService.getRestApiAllowControl()).resolves.toBe(true);
   });
 });

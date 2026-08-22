@@ -57,7 +57,7 @@ jobs:
       - name: Install JavaScript dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Configure optional release signing
+      - name: Configure required release signing
         id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.RC_FREEKIOSK_KEYSTORE_BASE64 }}
@@ -74,14 +74,8 @@ jobs:
             fi
           done
 
-          if [[ "${configured_values}" -eq 0 ]]; then
-            echo 'No release-signing secrets configured; Gradle will use its existing debug-keystore fallback.'
-            echo 'store_file=' >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
           if [[ "${configured_values}" -ne 4 ]]; then
-            echo 'Release signing is only partially configured. Set all four RC_FREEKIOSK_* secrets.' >&2
+            echo 'Release signing is mandatory. Set all four RC_FREEKIOSK_* repository secrets.' >&2
             exit 1
           fi
 
@@ -90,6 +84,23 @@ jobs:
           chmod 600 "${keystore_path}"
           echo 'store_file=rc-freekiosk-release.keystore' >> "${GITHUB_OUTPUT}"
 
+      - name: Derive Android version from release tag
+        id: version
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "${RELEASE_TAG}" =~ ^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo 'Release tag must use semantic versioning, for example v1.0.0 or v1.1.0-beta.1.' >&2
+            exit 1
+          fi
+
+          version_name="${RELEASE_TAG#v}"
+          version_code=$((100000 + GITHUB_RUN_NUMBER))
+          echo "name=${version_name}" >> "${GITHUB_OUTPUT}"
+          echo "code=${version_code}" >> "${GITHUB_OUTPUT}"
+
       - name: Build release APK
         working-directory: android
         env:
@@ -97,6 +108,8 @@ jobs:
           FREEKIOSK_UPLOAD_STORE_PASSWORD: ${{ secrets.RC_FREEKIOSK_STORE_PASSWORD }}
           FREEKIOSK_UPLOAD_KEY_ALIAS: ${{ secrets.RC_FREEKIOSK_KEY_ALIAS }}
           FREEKIOSK_UPLOAD_KEY_PASSWORD: ${{ secrets.RC_FREEKIOSK_KEY_PASSWORD }}
+          RC_VERSION_NAME: ${{ steps.version.outputs.name }}
+          RC_VERSION_CODE: ${{ steps.version.outputs.code }}
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Prepare release file

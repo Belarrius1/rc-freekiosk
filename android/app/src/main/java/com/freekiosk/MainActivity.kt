@@ -78,6 +78,11 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(null)
 
+    // Persist the RC Terminal wallpaper for the short Android transition shown
+    // between the boot animation and the kiosk launcher. The installer is
+    // asynchronous and only writes again when the packaged image changes.
+    RcWallpaperInstaller.applyIfChanged(applicationContext)
+
     // This fork lets Android manage screen timeout by default. The persisted
     // admin choice is re-applied by KioskModule once React Native has loaded.
     val displayPrefs = getSharedPreferences("FreeKioskSettings", Context.MODE_PRIVATE)
@@ -113,9 +118,6 @@ class MainActivity : ReactActivity() {
 
     // Request Android 13+ WiFi scan permission for visible SSID results
     requestWifiPermissions()
-
-    // Request camera permission for motion detection
-    requestCameraPermission()
 
     // Adjust content padding when the soft keyboard appears.
     // In immersive/kiosk mode adjustResize is ignored, so we listen for IME insets
@@ -224,13 +226,6 @@ class MainActivity : ReactActivity() {
       }
     } else {
       ActivityCompat.requestPermissions(this, needed.toTypedArray(), 1001)
-    }
-  }
-
-  private fun requestCameraPermission() {
-    if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
-        != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), 1002)
     }
   }
 

@@ -62,6 +62,7 @@ import KioskQuickSettingsDialog, {
   KioskQuickSetting,
 } from '../components/KioskQuickSettingsDialog';
 import { FORK_DEFAULTS } from '../config/forkDefaults';
+import { FORK_CAPABILITIES } from '../config/forkCapabilities';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { HttpServerModule } = NativeModules;
@@ -869,9 +870,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         },
         onSetMotionAlwaysOn: async (value: boolean) => {
           try {
-            setMotionAlwaysOn(value);
-            await StorageService.saveMqttMotionAlwaysOn(value);
-            console.log('[API] Motion always-on set to', value);
+            const allowedValue = FORK_CAPABILITIES.cameraCapture && value;
+            setMotionAlwaysOn(allowedValue);
+            await StorageService.saveMqttMotionAlwaysOn(allowedValue);
+            console.log('[API] Motion always-on set to', allowedValue);
           } catch (error) {
             console.error('[API] Error setting motion always-on:', error);
           }
@@ -1828,8 +1830,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         true,
       );
       const savedInactivityDelay = num(K.SCREENSAVER_INACTIVITY_DELAY, 600000);
-      const savedMotionEnabled = bool(K.SCREENSAVER_MOTION_ENABLED, false);
-      const savedMotionAlwaysOn = bool(K.MQTT_MOTION_ALWAYS_ON, false);
+      const savedMotionEnabled =
+        FORK_CAPABILITIES.cameraCapture &&
+        bool(K.SCREENSAVER_MOTION_ENABLED, false);
+      const savedMotionAlwaysOn =
+        FORK_CAPABILITIES.cameraCapture &&
+        bool(K.MQTT_MOTION_ALWAYS_ON, false);
       const savedMotionCameraPosition = (str(K.MOTION_CAMERA_POSITION) ??
         'front') as 'front' | 'back';
       const savedMotionSensitivity = (str(K.SCREENSAVER_MOTION_SENSITIVITY) ??
@@ -1863,7 +1869,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       // native AudioRecordingCallback registration doesn't survive an app restart. No-op when off.
       try {
         NativeModules.AudioControlModule?.setIntercomMode(
-          bool(K.INTERCOM_MODE, false),
+          FORK_CAPABILITIES.microphoneCapture && bool(K.INTERCOM_MODE, false),
         );
       } catch {}
       setScreensaverEnabled(savedScreensaverEnabled);
@@ -3490,16 +3496,18 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       />
 
       {/* Motion Detector - Active during pre-check OR when screensaver is ON (only if screen is focused) */}
-      <MotionDetector
-        enabled={
-          isFocused &&
-          (motionAlwaysOn ||
-            (motionEnabled && (isPreCheckingMotion || isScreensaverActive)))
-        }
-        onMotionDetected={onMotionDetected}
-        sensitivity={motionSensitivity}
-        cameraPosition={motionCameraPosition}
-      />
+      {FORK_CAPABILITIES.cameraCapture && (
+        <MotionDetector
+          enabled={
+            isFocused &&
+            (motionAlwaysOn ||
+              (motionEnabled && (isPreCheckingMotion || isScreensaverActive)))
+          }
+          onMotionDetected={onMotionDetected}
+          sensitivity={motionSensitivity}
+          cameraPosition={motionCameraPosition}
+        />
+      )}
 
       {/* Visual Button - WebView/Media mode only */}
       {/* In button mode: button always clickable, visibility controlled by opacity */}

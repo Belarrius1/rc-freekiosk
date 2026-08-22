@@ -30,7 +30,7 @@ export const ApiSettingsSection: React.FC<ApiSettingsSectionProps> = ({
   const [apiEnabled, setApiEnabled] = useState(false);
   const [apiPort, setApiPort] = useState('8080');
   const [apiKey, setApiKey] = useState('');
-  const [allowControl, setAllowControl] = useState(true);
+  const [allowControl, setAllowControl] = useState(false);
   const [serverRunning, setServerRunning] = useState(false);
   const [localIp, setLocalIp] = useState('0.0.0.0');
   const [isLoading, setIsLoading] = useState(false);
@@ -298,7 +298,6 @@ export const ApiSettingsSection: React.FC<ApiSettingsSectionProps> = ({
               <Text style={styles.endpoint}>/api/storage - Storage info</Text>
               <Text style={styles.endpoint}>/api/memory - RAM info</Text>
               <Text style={styles.endpoint}>/api/wifi - WiFi status</Text>
-              <Text style={styles.endpoint}>/api/screenshot - Capture screen (PNG)</Text>
             </View>
 
             {allowControl && (

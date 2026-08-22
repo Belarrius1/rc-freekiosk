@@ -4,9 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.location.Location
 import android.location.LocationManager
-import android.graphics.Bitmap
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -33,7 +31,6 @@ import android.speech.tts.TextToSpeech
 import android.util.Log
 import android.view.KeyEvent
 import android.view.View
-import android.view.WindowManager
 import android.widget.Toast
 import com.facebook.react.bridge.*
 import com.facebook.react.bridge.UiThreadUtil
@@ -45,8 +42,6 @@ import com.freekiosk.CameraPhotoModule
 import com.freekiosk.FreeKioskAccessibilityService
 import com.freekiosk.ScreenController
 import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.util.Locale
@@ -235,19 +230,12 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
             // Acquire locks to keep server running even when screen is off
             acquireServerLocks()
 
-            // Initialize camera module
-            if (cameraPhotoModule == null) {
-                cameraPhotoModule = CameraPhotoModule(reactContext.applicationContext)
-            }
-
             server = KioskHttpServer(
                 port = port,
                 apiKey = if (apiKey.isNullOrEmpty()) null else apiKey,
                 allowControl = allowControl,
                 statusProvider = { getDeviceStatus() },
-                commandHandler = { command, params -> handleCommand(command, params) },
-                screenshotProvider = { captureScreenshot() },
-                cameraPhotoProvider = { camera, quality -> cameraPhotoModule?.capturePhoto(camera, quality) }
+                commandHandler = { command, params -> handleCommand(command, params) }
             )
 
             server?.start()
@@ -764,23 +752,6 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
                     })
                 }
             }
-            "cameraList" -> {
-                val cameras = cameraPhotoModule?.getAvailableCameras() ?: emptyList()
-                return JSONObject().apply {
-                    put("executed", true)
-                    put("command", command)
-                    put("cameras", org.json.JSONArray().apply {
-                        cameras.forEach { cam ->
-                            put(JSONObject().apply {
-                                put("id", cam["id"])
-                                put("facing", cam["facing"])
-                                put("maxWidth", cam["maxWidth"])
-                                put("maxHeight", cam["maxHeight"])
-                            })
-                        }
-                    })
-                }
-            }
             "reboot" -> {
                 return try {
                     val dpm = reactContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
@@ -996,9 +967,6 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
                     }
                 }
                 return sendKeyboardText(text)
-            }
-            "getLocation" -> {
-                return getLocationInfo()
             }
         }
         
@@ -1754,75 +1722,6 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    // ==================== GPS Location ====================
-
-    /**
-     * Get the device's last known GPS location.
-     * Tries GPS, Network, and Passive providers, returns the most accurate.
-     * Requires ACCESS_FINE_LOCATION permission (already declared in manifest).
-     */
-    private fun getLocationInfo(): JSONObject {
-        return try {
-            val locationManager = reactContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-
-            // Try to get last known location from various providers (best accuracy wins)
-            var bestLocation: Location? = null
-            val providers = listOf(
-                LocationManager.GPS_PROVIDER,
-                LocationManager.NETWORK_PROVIDER,
-                LocationManager.PASSIVE_PROVIDER
-            )
-
-            for (provider in providers) {
-                try {
-                    if (locationManager.isProviderEnabled(provider)) {
-                        @Suppress("MissingPermission")
-                        val location = locationManager.getLastKnownLocation(provider)
-                        if (location != null) {
-                            if (bestLocation == null || location.accuracy < bestLocation!!.accuracy) {
-                                bestLocation = location
-                            }
-                        }
-                    }
-                } catch (e: SecurityException) {
-                    Log.w(TAG, "No location permission for provider: $provider")
-                }
-            }
-
-            // Check which providers are enabled
-            val enabledProviders = providers.filter {
-                try { locationManager.isProviderEnabled(it) } catch (e: Exception) { false }
-            }
-
-            JSONObject().apply {
-                put("executed", true)
-                put("command", "getLocation")
-                put("providers", org.json.JSONArray(enabledProviders))
-                if (bestLocation != null) {
-                    put("available", true)
-                    put("latitude", bestLocation!!.latitude)
-                    put("longitude", bestLocation!!.longitude)
-                    put("accuracy", bestLocation!!.accuracy.toDouble())
-                    put("altitude", bestLocation!!.altitude)
-                    put("speed", bestLocation!!.speed.toDouble())
-                    put("bearing", bestLocation!!.bearing.toDouble())
-                    put("provider", bestLocation!!.provider ?: "unknown")
-                    put("time", bestLocation!!.time)
-                } else {
-                    put("available", false)
-                    put("error", "No location available. Ensure GPS is enabled and location permission is granted.")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to get location: ${e.message}")
-            JSONObject().apply {
-                put("executed", false)
-                put("command", "getLocation")
-                put("error", "Failed to get location: ${e.message}")
-            }
-        }
-    }
-
     // ==================== WebView Cache Clearing ====================
 
     private fun clearWebViewCache() {
@@ -1847,44 +1746,6 @@ class HttpServerModule(private val reactContext: ReactApplicationContext) :
         }
     }
 
-    // ==================== Screenshot Method ====================
-
-    private fun captureScreenshot(): java.io.InputStream? {
-        return try {
-            var screenshot: ByteArrayInputStream? = null
-            val latch = java.util.concurrent.CountDownLatch(1)
-            
-            UiThreadUtil.runOnUiThread {
-                try {
-                    val activity = reactContext.currentActivity
-                    val rootView = activity?.window?.decorView?.rootView
-                    
-                    if (rootView != null) {
-                        rootView.isDrawingCacheEnabled = true
-                        val bitmap = Bitmap.createBitmap(rootView.drawingCache)
-                        rootView.isDrawingCacheEnabled = false
-                        
-                        val outputStream = ByteArrayOutputStream()
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 90, outputStream)
-                        screenshot = ByteArrayInputStream(outputStream.toByteArray())
-                        bitmap.recycle()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to capture screenshot on UI thread", e)
-                } finally {
-                    latch.countDown()
-                }
-            }
-            
-            // Wait for UI thread to complete (max 5 seconds)
-            latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-            screenshot
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to capture screenshot", e)
-            null
-        }
-    }
-    
     /**
      * Clean up resources when module is destroyed
      */

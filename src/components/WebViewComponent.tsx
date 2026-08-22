@@ -1235,10 +1235,9 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           nestedScrollEnabled={true}
           mediaPlaybackRequiresUserAction={false}
           allowsInlineMediaPlayback={true}
-          // Kiosk mode: auto-grant camera/microphone permissions to web pages.
-          // On Android this is handled by our RNCWebChromeClient patch (auto-grant in onPermissionRequest).
-          // On iOS this prop handles it natively.
-          mediaCapturePermissionGrantType="grant"
+          // RC Terminal has no camera/microphone use case. Deny capture explicitly;
+          // normal audio/video playback and Android keyboard input remain available.
+          mediaCapturePermissionGrantType="deny"
         />
 
         {loading && !error && (

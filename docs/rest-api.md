@@ -336,80 +336,6 @@ Simple health check.
 
 
 
-#### `GET /api/screenshot`
-
-Returns a PNG image of the current screen.
-
-**Response**: `image/png` binary data
-
-**Usage examples:**
-
-
-```bash
-# Save screenshot to file
-curl http://TABLET_IP:8080/api/screenshot -o screenshot.png
-
-# Display in HTML
-<img src="http://TABLET_IP:8080/api/screenshot" />
-```
-
-
-
-> 💡 The screenshot is captured from the app's root view. It works even when the screensaver overlay is active.
-
-#### `GET /api/camera/photo`
-
-Take a photo using the device camera. **(v1.2.5+)**
-
-**Query Parameters:**
-
-
-| Parameter | Default | Description |
-|---|---|---|
-| **camera** | `back` | Camera to use: `front` or `back` |
-| **quality** | `80` | JPEG compression quality (1-100) |
-
-
-
-**Examples:**
-
-
-```
-GET /api/camera/photo?camera=back&quality=80
-GET /api/camera/photo?camera=front&quality=60
-```
-
-
-
-**Response**: `image/jpeg` binary data
-
-**Notes:**
-- First capture may take 1-2 seconds (camera initialization + auto-exposure)
-- Camera permission must be granted (already included in app permissions)
-- Photo resolution is automatically optimized (~1.2MP) for fast HTTP transfer
-- Higher quality values produce larger files
-
-#### `GET /api/camera/list`
-
-List available cameras on the device. **(v1.2.5+)**
-
-
-
-```json
-{
-  "success": true,
-  "data": {
-    "cameras": [
-      { "id": "0", "facing": "back", "maxWidth": 4032, "maxHeight": 3024 },
-      { "id": "1", "facing": "front", "maxWidth": 2560, "maxHeight": 1920 }
-    ]
-  }
-}
-```
-
-
-
-
 ### Control Commands (POST)
 
 #### `POST /api/brightness`
@@ -781,54 +707,6 @@ Response:
 >
 > **Summary**: On Android 13+, everything works via InputMethod APIs. On Android 5–12, most remote control operations work: DPAD navigation via accessibility tree traversal, Select via `ACTION_CLICK`, Play/Pause via global action (API 31+), text/printable keys via `ACTION_SET_TEXT`. Only Tab, F-keys, and Ctrl/Alt shortcuts are limited.
 
-### GPS Location (GET)
-
-#### `GET /api/location`
-
-Returns the device's last known GPS coordinates. Uses GPS, Network, and Passive location providers.
-
-> ⚠️ **Requires**: Location permission granted + GPS enabled on the device.
-
-```bash
-curl http://tablet-ip:8080/api/location
-```
-
-Response:
-```json
-{
-  "success": true,
-  "data": {
-    "executed": true,
-    "command": "getLocation",
-    "available": true,
-    "latitude": 48.8566,
-    "longitude": 2.3522,
-    "accuracy": 15.0,
-    "altitude": 35.0,
-    "speed": 0.0,
-    "bearing": 0.0,
-    "provider": "gps",
-    "time": 1704672000000,
-    "providers": ["gps", "network", "passive"]
-  }
-}
-```
-
-If no location is available:
-```json
-{
-  "success": true,
-  "data": {
-    "executed": true,
-    "command": "getLocation",
-    "available": false,
-    "error": "No location available. Ensure GPS is enabled and location permission is granted.",
-    "providers": ["network", "passive"]
-  }
-}
-```
-
-
 ## Authentication
 
 If an API key is configured, include it in requests:
@@ -879,19 +757,6 @@ rest:
       
       - name: "Tablet Screensaver"
         value_template: "{{ value_json.data.screen.screensaverActive }}"
-
-  - resource: http://TABLET_IP:8080/api/location
-    scan_interval: 300
-    sensor:
-      - name: "Tablet GPS Latitude"
-        value_template: "{{ value_json.data.latitude | default('unavailable') }}"
-      
-      - name: "Tablet GPS Longitude"
-        value_template: "{{ value_json.data.longitude | default('unavailable') }}"
-      
-      - name: "Tablet GPS Accuracy"
-        value_template: "{{ value_json.data.accuracy | default('unavailable') }}"
-        unit_of_measurement: "m"
 
   - resource: http://TABLET_IP:8080/api/battery
     scan_interval: 60
@@ -986,33 +851,6 @@ rest_command:
     payload: '{"text": "{{ text }}"}'
 ```
 
-### Screenshot Camera
-
-```yaml
-camera:
-  - platform: generic
-    name: "Tablet Screenshot"
-    still_image_url: http://TABLET_IP:8080/api/screenshot
-    content_type: image/png
-```
-
-### Device Camera (Photo)
-
-```yaml
-camera:
-  - platform: generic
-    name: "Tablet Camera (Back)"
-    still_image_url: http://TABLET_IP:8080/api/camera/photo?camera=back&quality=80
-    content_type: image/jpeg
-
-  - platform: generic
-    name: "Tablet Camera (Front)"
-    still_image_url: http://TABLET_IP:8080/api/camera/photo?camera=front&quality=80
-    content_type: image/jpeg
-```
-
-> 💡 **Tip**: Use the front camera as a basic security camera, or the back camera for monitoring. Combine with automations to capture photos on motion detection events.
-
 ### Example Automations
 
 #### Auto-brightness based on room light
@@ -1087,9 +925,6 @@ curl -X POST -H "Content-Type: application/json" \
 # Play beep
 curl -X POST http://TABLET_IP:8080/api/audio/beep
 
-# Save screenshot
-curl http://TABLET_IP:8080/api/screenshot -o screenshot.png
-
 # Show toast
 curl -X POST -H "Content-Type: application/json" \
   -d '{"text": "Hello!"}' http://TABLET_IP:8080/api/toast
@@ -1104,8 +939,6 @@ curl "http://TABLET_IP:8080/api/remote/keyboard?map=ctrl+a"
 curl -X POST -H "Content-Type: application/json" \
   -d '{"text": "Hello World!"}' http://TABLET_IP:8080/api/remote/text
 
-# Get GPS location
-curl http://TABLET_IP:8080/api/location
 ```
 
 

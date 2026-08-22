@@ -18,6 +18,7 @@ import { Colors, Spacing, Typography } from '../../../theme';
 import { ScreenScheduleRule } from '../../../types/screenScheduler';
 import type { MediaItem } from '../../../types/mediaPlayer';
 import { getMediaDisplayName } from '../../../types/mediaPlayer';
+import { FORK_CAPABILITIES } from '../../../config/forkCapabilities';
 
 interface DisplayTabProps {
   displayMode: 'webview' | 'external_app' | 'media_player';
@@ -561,7 +562,8 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
               </View>
               
               {/* Motion Detection */}
-              <View style={styles.subSection}>
+              {FORK_CAPABILITIES.cameraCapture && (
+                <View style={styles.subSection}>
                 <Text style={styles.subSectionTitle}>Motion Detection</Text>
                 <SettingsSwitch
                   label="Enable Detection"
@@ -622,7 +624,8 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
 
                   </>
                 )}
-              </View>
+                </View>
+              )}
               
               {/* How it works */}
               <View style={styles.subSection}>
@@ -948,12 +951,14 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
             value={pauseWebMediaWhenHidden}
             onValueChange={onPauseWebMediaWhenHiddenChange}
           />
-          <SettingsSwitch
-            label="🎙️ 2-way audio (intercom) mode"
-            hint="Enable for WebRTC 2-way audio / talk-back (e.g. a Home Assistant / go2rtc doorbell intercom card). While the web page is actively using the microphone, FreeKiosk switches the device to communication audio mode so the microphone back-channel transmits, then restores normal audio when you stop talking. Leave off for normal browsing — it only engages while the mic is in use."
-            value={intercomModeEnabled}
-            onValueChange={onIntercomModeChange}
-          />
+          {FORK_CAPABILITIES.microphoneCapture && (
+            <SettingsSwitch
+              label="🎙️ 2-way audio (intercom) mode"
+              hint="Enable for WebRTC 2-way audio / talk-back (e.g. a Home Assistant / go2rtc doorbell intercom card). While the web page is actively using the microphone, FreeKiosk switches the device to communication audio mode so the microphone back-channel transmits, then restores normal audio when you stop talking. Leave off for normal browsing — it only engages while the mic is in use."
+              value={intercomModeEnabled}
+              onValueChange={onIntercomModeChange}
+            />
+          )}
         </SettingsSection>
       )}
 

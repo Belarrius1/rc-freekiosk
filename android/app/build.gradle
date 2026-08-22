@@ -22,6 +22,8 @@ def releaseStoreFile = signingValue('FREEKIOSK_UPLOAD_STORE_FILE')
 def releaseStorePassword = signingValue('FREEKIOSK_UPLOAD_STORE_PASSWORD')
 def releaseKeyAlias = signingValue('FREEKIOSK_UPLOAD_KEY_ALIAS')
 def releaseKeyPassword = signingValue('FREEKIOSK_UPLOAD_KEY_PASSWORD')
+def rcVersionName = System.getenv('RC_VERSION_NAME') ?: '1.2.20'
+def rcVersionCode = (System.getenv('RC_VERSION_CODE') ?: '44') as Integer
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -112,8 +114,8 @@ android {
         applicationId "com.freekiosk"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 44
-        versionName "1.2.20"
+        versionCode rcVersionCode
+        versionName rcVersionName
 
         // Expose self-update flag to both Kotlin (BuildConfig) and JS (via UpdateModule constants)
         buildConfigField "boolean", "ENABLE_SELF_UPDATE", "${enableSelfUpdate}"
@@ -175,6 +177,14 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             shrinkResources true
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    // Package the local RC visual assets so native Android code can apply the
+    // terminal wallpaper without duplicating the binary in the source tree.
+    sourceSets {
+        main {
+            assets.srcDir rootProject.file('../img')
         }
     }
 

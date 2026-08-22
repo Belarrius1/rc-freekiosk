@@ -14,9 +14,7 @@ class KioskHttpServer(
     private val apiKey: String?,
     private val allowControl: Boolean,
     private val statusProvider: () -> JSONObject,
-    private val commandHandler: (String, JSONObject?) -> JSONObject,
-    private val screenshotProvider: (() -> java.io.InputStream?)? = null,
-    private val cameraPhotoProvider: ((camera: String, quality: Int) -> java.io.InputStream?)? = null
+    private val commandHandler: (String, JSONObject?) -> JSONObject
 ) : NanoHTTPD(port) {
 
     companion object {
@@ -76,9 +74,6 @@ class KioskHttpServer(
                 isGetOrPost && uri == "/api/sensors" -> handleGetSensors()
                 isGetOrPost && uri == "/api/storage" -> handleGetStorage()
                 isGetOrPost && uri == "/api/memory" -> handleGetMemory()
-                isGetOrPost && uri == "/api/screenshot" -> handleScreenshot()
-                isGetOrPost && uri == "/api/camera/list" -> handleCameraList()
-                isGetOrPost && uri == "/api/location" -> handleGetLocation()
                 isGetOrPost && uri == "/" -> handleRoot()
 
                 // Read endpoints that also have a POST variant — POST with body sets, GET/POST without body reads
@@ -88,9 +83,6 @@ class KioskHttpServer(
                 isGetOrPost && uri == "/api/volume" -> {
                     if (method == Method.POST) handleSetVolume(session) else handleGetVolume()
                 }
-
-                // Camera photo: GET or POST (query params drive behavior)
-                isGetOrPost && uri == "/api/camera/photo" -> handleCameraPhoto(session)
 
                 // POST-only control endpoints requiring a JSON body
                 method == Method.POST && uri == "/api/url" -> handleSetUrl(session)
@@ -172,10 +164,7 @@ class KioskHttpServer(
                     put("/api/storage - Storage info")
                     put("/api/memory - Memory info")
                     put("/api/health - Health check")
-                    put("/api/camera/photo - Take photo (params: camera=front|back, quality=0-100)")
-                    put("/api/camera/list - List available cameras")
                     put("/api/volume - Get current volume {level, maxLevel}")
-                    put("/api/location - GPS coordinates (latitude, longitude, accuracy)")
                 })
                 put("POST", JSONArray().apply {
                     put("/api/brightness - Set brightness {value: 0-100}")
@@ -566,25 +555,6 @@ class KioskHttpServer(
         return jsonSuccess(result)
     }
 
-    // ==================== Location Handler ====================
-
-    private fun handleGetLocation(): Response {
-        val result = commandHandler("getLocation", null)
-        return jsonSuccess(result)
-    }
-
-    private fun handleScreenshot(): Response {
-        // Get screenshot from module
-        val screenshotData = screenshotProvider?.invoke()
-        return if (screenshotData != null) {
-            // Return as image/png - need to get available bytes for content length
-            val bytes = screenshotData.readBytes()
-            newFixedLengthResponse(Response.Status.OK, "image/png", java.io.ByteArrayInputStream(bytes), bytes.size.toLong())
-        } else {
-            jsonError(Response.Status.SERVICE_UNAVAILABLE, "Screenshot not available")
-        }
-    }
-
     private fun handleAudioPlay(session: IHTTPSession): Response {
         checkControlAllowed()?.let { return it }
         val body = parseBody(session)
@@ -608,32 +578,6 @@ class KioskHttpServer(
     private fun handleAudioBeep(): Response {
         checkControlAllowed()?.let { return it }
         val result = commandHandler("audioBeep", null)
-        return jsonSuccess(result)
-    }
-
-    // ==================== Camera Handlers ====================
-
-    private fun handleCameraPhoto(session: IHTTPSession): Response {
-        val params = session.parms ?: emptyMap()
-        val camera = params["camera"] ?: "back"
-        val quality = (params["quality"]?.toIntOrNull() ?: 80).coerceIn(1, 100)
-
-        Log.d(TAG, "Camera photo request: camera=$camera, quality=$quality")
-
-        val photoData = cameraPhotoProvider?.invoke(camera, quality)
-        return if (photoData != null) {
-            val bytes = photoData.readBytes()
-            newFixedLengthResponse(
-                Response.Status.OK, "image/jpeg",
-                java.io.ByteArrayInputStream(bytes), bytes.size.toLong()
-            )
-        } else {
-            jsonError(Response.Status.SERVICE_UNAVAILABLE, "Camera not available. Check camera permission and hardware.")
-        }
-    }
-
-    private fun handleCameraList(): Response {
-        val result = commandHandler("cameraList", null)
         return jsonSuccess(result)
     }
 

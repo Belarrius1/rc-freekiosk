@@ -144,7 +144,7 @@ const PinScreen: React.FC<PinScreenProps> = ({ navigation }) => {
           size={20}
           color={RC_THEME.colors.accentBright}
         />
-        <Text style={styles.backButtonText}>Back to kiosk</Text>
+        <Text style={styles.backButtonText}>Back to Relic Commander</Text>
       </TouchableOpacity>
 
       <PinInput onSuccess={handleSuccess} storedPin={storedPin} />

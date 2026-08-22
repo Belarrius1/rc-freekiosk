@@ -60,6 +60,7 @@ interface SettingsScreenProps {
 // Import Icon types
 import Icon, { IconName, IconMap } from '../../components/Icon';
 import { FORK_DEFAULTS } from '../../config/forkDefaults';
+import { FORK_CAPABILITIES } from '../../config/forkCapabilities';
 
 // Tab configuration
 const TABS: { id: string; label: string; icon: IconName }[] = [
@@ -257,6 +258,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   // This is needed for devices where CameraX/ProcessCameraProvider fails entirely
   // (e.g. MediaTek LEGACY front-only cameras where CameraValidator rejects the device).
   const fetchCamera2Fallback = useCallback(async () => {
+    if (!FORK_CAPABILITIES.cameraCapture) {
+      return false;
+    }
+
     try {
       const camera2Devices = await httpServer.getCamera2Devices();
       if (camera2Devices && camera2Devices.length > 0) {
@@ -280,6 +285,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   // ProcessCameraProvider initializes asynchronously, so getAvailableCameraDevices() may
   // return [] on the first call if the provider hasn't resolved yet).
   const detectCameras = useCallback(() => {
+    if (!FORK_CAPABILITIES.cameraCapture) {
+      return;
+    }
+
     try {
       const devices = Camera.getAvailableCameraDevices();
       const cameras = devices
@@ -337,6 +346,10 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   // If the event fires with 0 cameras (MediaTek LEGACY front-only devices where CameraX
   // validation permanently fails), fall back to Camera2 API enumeration.
   useEffect(() => {
+    if (!FORK_CAPABILITIES.cameraCapture) {
+      return;
+    }
+
     const subscription = Camera.addCameraDevicesChangedListener((devices) => {
       const cameras = devices
         .filter((d: any) => d.position === 'front' || d.position === 'back')
@@ -477,7 +490,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
     }
     setScreensaverEnabled(savedScreensaverEnabled ?? false);
     setDefaultBrightness(savedDefaultBrightness ?? 0.5);
-    setMotionEnabled(savedMotionEnabled ?? false);
+    setMotionEnabled(
+      FORK_CAPABILITIES.cameraCapture && (savedMotionEnabled ?? false),
+    );
     setMotionSensitivity((savedMotionSensitivity as 'low' | 'medium' | 'high') ?? 'medium');
     setMotionCameraPosition(savedMotionCameraPosition ?? 'front');
     setScreensaverBrightness(savedScreensaverBrightness ?? 0);
@@ -488,7 +503,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
 
     // Detect available cameras (first attempt — may return [] on slow SoCs before
     // ProcessCameraProvider resolves; the CameraDevicesChanged listener handles the retry)
-    detectCameras();
+    if (FORK_CAPABILITIES.cameraCapture) {
+      detectCameras();
+    }
 
     if (savedInactivityDelay && !isNaN(savedInactivityDelay)) {
       setInactivityDelay(String(Math.floor(savedInactivityDelay / 60000)));
@@ -688,7 +705,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
     const savedPauseWebMediaWhenHidden = await StorageService.getPauseWebMediaWhenHidden();
     setPauseWebMediaWhenHidden(savedPauseWebMediaWhenHidden);
     const savedIntercomMode = await StorageService.getIntercomMode();
-    setIntercomModeEnabled(savedIntercomMode ?? false);
+    setIntercomModeEnabled(
+      FORK_CAPABILITIES.microphoneCapture && (savedIntercomMode ?? false),
+    );
 
     const savedBasicAuthUsername = await StorageService.getHttpBasicAuthUsername();
     const savedBasicAuthPassword = await getSecureBasicAuthPassword();
@@ -892,6 +911,13 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   // #205 — opt-in 2-way audio: put the device in communication audio mode only while the
   // WebView is capturing the mic, so the WebRTC talk-back channel transmits.
   const toggleIntercomMode = async (value: boolean) => {
+    if (!FORK_CAPABILITIES.microphoneCapture) {
+      setIntercomModeEnabled(false);
+      await StorageService.saveIntercomMode(false);
+      await AudioControlModule?.setIntercomMode(false).catch(() => {});
+      return;
+    }
+
     setIntercomModeEnabled(value);
     await StorageService.saveIntercomMode(value);
     try {
@@ -902,6 +928,12 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
   };
 
   const toggleMotionDetection = async (value: boolean) => {
+    if (!FORK_CAPABILITIES.cameraCapture) {
+      setMotionEnabled(false);
+      await StorageService.saveScreensaverMotionEnabled(false);
+      return;
+    }
+
     if (value) {
       // Check if cameras are available (use already detected list)
       if (availableCameras.length === 0) {
@@ -1145,8 +1177,16 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
       
       // Use semantic version comparison instead of simple string equality
       const versionComparison = compareVersions(latestVer, currentVer);
+      // Builds produced before RC-FreeKiosk adopted tag-derived versions still report the
+      // upstream 1.2.20 / versionCode 44. Allow exactly those legacy installs to migrate
+      // once to the fork's own version line (for example v1.0.0).
+      const isLegacyForkBuild =
+        currentVer === '1.2.20' && currentVersionInfo.versionCode === 44;
       
-      if (versionComparison > 0) {
+      if (
+        versionComparison > 0 ||
+        (isLegacyForkBuild && latestVer !== currentVer)
+      ) {
         // Latest version is newer than current
         setUpdateAvailable(true);
         setUpdateInfo(latestUpdate);
@@ -1386,7 +1426,9 @@ const SettingsScreenNew: React.FC<SettingsScreenProps> = ({ navigation }) => {
     await StorageService.saveScreensaverEnabled(screensaverEnabled);
     await StorageService.saveScreensaverInactivityEnabled(true);
     await StorageService.saveScreensaverInactivityDelay(inactivityDelayNumber * 60000);
-    await StorageService.saveScreensaverMotionEnabled(motionEnabled);
+    await StorageService.saveScreensaverMotionEnabled(
+      FORK_CAPABILITIES.cameraCapture && motionEnabled,
+    );
     await StorageService.saveScreensaverMotionSensitivity(motionSensitivity);
     await StorageService.saveScreensaverBrightness(screensaverBrightness);
     await StorageService.saveScreensaverType(screensaverType);

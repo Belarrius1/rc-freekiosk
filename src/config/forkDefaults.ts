@@ -5,4 +5,5 @@ export const FORK_DEFAULTS = {
   disableUserZoom: true,
   blockFactoryReset: true,
   defaultLauncher: true,
+  restApiAllowControl: false,
 } as const;

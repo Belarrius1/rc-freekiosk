@@ -42,7 +42,7 @@ class HttpServerService {
   async startServer(
     port: number = 8080,
     apiKey: string | null = null,
-    allowControl: boolean = true
+    allowControl: boolean = false
   ): Promise<StartResult> {
     if (Platform.OS !== 'android') {
       throw new Error('HTTP Server is only available on Android');

@@ -88,9 +88,9 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         Thread {
             try {
                 val apiUrl = if (includeBeta) {
-                    "https://api.github.com/repos/rushb-fr/freekiosk/releases?per_page=10"
+                    "https://api.github.com/repos/Belarrius1/rc-freekiosk/releases?per_page=10"
                 } else {
-                    "https://api.github.com/repos/rushb-fr/freekiosk/releases/latest"
+                    "https://api.github.com/repos/Belarrius1/rc-freekiosk/releases/latest"
                 }
                 
                 android.util.Log.d("UpdateModule", "Checking updates: includeBeta=$includeBeta, url=$apiUrl")
@@ -120,7 +120,8 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                         JSONObject(response)
                     }
                     
-                    val tagName = jsonObject.getString("tag_name").removePrefix("v")
+                    val rawTagName = jsonObject.getString("tag_name")
+                    val tagName = rawTagName.removePrefix("v")
                     val releaseName = jsonObject.optString("name", "")
                     val releaseNotes = jsonObject.optString("body", "")
                     val publishedAt = jsonObject.optString("published_at", "")
@@ -143,11 +144,11 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                     
                     // Fallback to constructed URL if no asset found (should not happen)
                     if (apkUrl.isEmpty()) {
-                        apkUrl = "https://github.com/rushb-fr/freekiosk/releases/download/v${tagName}/FreeKiosk-v${tagName}.apk"
+                        apkUrl = "https://github.com/Belarrius1/rc-freekiosk/releases/download/${rawTagName}/RC-FreeKiosk-${rawTagName}.apk"
                         android.util.Log.w("UpdateModule", "No APK asset found, using fallback URL")
                     }
                     
-                    android.util.Log.d("UpdateModule", "Tag from GitHub: ${jsonObject.getString("tag_name")}")
+                    android.util.Log.d("UpdateModule", "Tag from GitHub: $rawTagName")
                     android.util.Log.d("UpdateModule", "Version after removePrefix: $tagName")
                     android.util.Log.d("UpdateModule", "APK Download URL: $apkUrl")
                     android.util.Log.d("UpdateModule", "Is pre-release: $isPrerelease")
@@ -247,7 +248,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             try {
                 val downloadsDir = reactApplicationContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
                 downloadsDir?.listFiles()?.forEach { file ->
-                    if (file.name.startsWith("FreeKiosk-") && file.name.endsWith(".apk")) {
+                    if (file.name.startsWith("RC-FreeKiosk-") && file.name.endsWith(".apk")) {
                         file.delete()
                         android.util.Log.d("UpdateModule", "Cleaned up old APK: ${file.name}")
                     }
@@ -256,16 +257,16 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                 android.util.Log.w("UpdateModule", "Failed to clean up old APKs: ${e.message}")
             }
             
-            val fileName = "FreeKiosk-${version}.apk"
+            val fileName = "RC-FreeKiosk-${version}.apk"
             val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
-                setTitle("FreeKiosk Update")
+                setTitle("RC-FreeKiosk Update")
                 setDescription("Downloading version $version")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 // Use app-private external dir: no WRITE_EXTERNAL_STORAGE permission needed
                 setDestinationInExternalFilesDir(reactApplicationContext, Environment.DIRECTORY_DOWNLOADS, fileName)
                 setAllowedOverMetered(true)
                 setAllowedOverRoaming(true)
-                addRequestHeader("User-Agent", "FreeKiosk-Updater")
+                addRequestHeader("User-Agent", "RC-FreeKiosk-Updater")
                 addRequestHeader("Accept", "application/vnd.android.package-archive")
             }
             

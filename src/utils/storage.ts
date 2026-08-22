@@ -1434,10 +1434,10 @@ export const StorageService = {
   getRestApiAllowControl: async (): Promise<boolean> => {
     try {
       const value = await AsyncStorage.getItem(KEYS.REST_API_ALLOW_CONTROL);
-      return value ? JSON.parse(value) : true;
+      return value ? JSON.parse(value) : FORK_DEFAULTS.restApiAllowControl;
     } catch (error) {
       console.error('Error getting REST API allow control:', error);
-      return true;
+      return FORK_DEFAULTS.restApiAllowControl;
     }
   },
 
