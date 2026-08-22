@@ -1,12 +1,6 @@
 name: Sync Docs to Wiki
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'docs/**'
-      - '.github/workflows/docs-to-wiki-sync.yml'
   workflow_dispatch:
 
 permissions:

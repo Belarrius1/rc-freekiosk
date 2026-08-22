@@ -80,6 +80,13 @@ describe('RC-FreeKiosk release pipeline', () => {
     expect(workflow).toContain('gh release upload');
     expect(workflow).toContain('gh release create');
   });
+
+  it('keeps the documentation-to-Wiki synchronization manual', () => {
+    const workflow = readProjectFile('.github/workflows/docs-to-wiki-sync.yml');
+
+    expect(workflow).toContain('workflow_dispatch:');
+    expect(workflow).not.toMatch(/^\s+(push|pull_request|schedule):/m);
+  });
 });
 
 describe('RC Terminal Android wallpaper', () => {
