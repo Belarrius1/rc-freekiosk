@@ -59,7 +59,7 @@ interface WebViewComponentProps {
   zoomLevel?: number; // Zoom level percentage (50-200, default 100)
   zoomMode?: string; // 'standard' (CSS zoom) | 'fit' (viewport reflow, #188)
   disableUserZoom?: boolean; // Prevent pinch-to-zoom and double-tap zoom
-  customUserAgent?: string; // Custom User-Agent string (empty = default modern Chrome UA)
+  customUserAgent?: string; // Custom User-Agent string (empty = native Android WebView UA)
   basicAuthCredential?: { username: string; password: string };
   onRenderProcessGone?: (didCrash: boolean) => void; // #198 — renderer process died, ask parent to remount
 }
@@ -939,16 +939,20 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           ref={webViewRef}
           source={{ uri: error ? 'about:blank' : url }}
           style={styles.webview}
-          // User Agent - Modern Chrome on Android to avoid WAF blocks (e.g. SiteGround)
-          // Custom UA takes precedence if set, otherwise use a recent Chrome stable UA
-          userAgent={
-            customUserAgent?.trim() ||
-            'Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36'
-          }
+          // Keep browser identity consistent for security challenges such as
+          // Cloudflare Turnstile. Only override Android WebView's native UA when
+          // the administrator explicitly configured one.
+          userAgent={customUserAgent?.trim() || undefined}
           originWhitelist={
             pdfViewerEnabled
-              ? ['http://*', 'https://*', 'file://*']
-              : ['http://*', 'https://*']
+              ? [
+                  'http://*',
+                  'https://*',
+                  'about:blank',
+                  'about:srcdoc',
+                  'file://*',
+                ]
+              : ['http://*', 'https://*', 'about:blank', 'about:srcdoc']
           }
           mixedContentMode="always"
           onHttpError={handleHttpError}
@@ -1007,6 +1011,27 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           onShouldStartLoadWithRequest={(request: ShouldStartLoadRequest) => {
             // Security: Block dangerous URL schemes
             const urlLower = request.url.toLowerCase();
+
+            // Turnstile and other standards-compliant embedded challenges use
+            // these internal documents while constructing their sandboxed iframe.
+            if (
+              urlLower.startsWith('about:blank') ||
+              urlLower.startsWith('about:srcdoc')
+            ) {
+              return true;
+            }
+
+            // Allow Cloudflare Turnstile inside a subframe even when the kiosk URL
+            // whitelist is enabled. Never grant this exception to top-frame
+            // navigation, so it cannot become an escape route from Relic Commander.
+            if (
+              request.isTopFrame === false &&
+              /^https:\/\/challenges\.cloudflare\.com(?:[/:?#]|$)/i.test(
+                request.url,
+              )
+            ) {
+              return true;
+            }
 
             // Allow file:// only for our bundled PDF viewer
             if (urlLower.startsWith('file:///android_asset/pdfjs/')) {

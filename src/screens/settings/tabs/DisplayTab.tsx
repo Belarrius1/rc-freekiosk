@@ -922,17 +922,17 @@ const DisplayTab: React.FC<DisplayTabProps> = ({
         <SettingsSection title="User Agent" icon="web">
           <SettingsInput
             label="Custom User Agent"
-            hint={customUserAgent.trim() ? 'Custom UA active. Clear the field to use the default.' : 'Leave empty to use the default modern Chrome User Agent. Some hosting providers (e.g. SiteGround) block old or suspicious User Agents.'}
+            hint={customUserAgent.trim() ? 'Custom UA active. Clear the field to use the native Android WebView identity.' : 'Using the native Android WebView User Agent. This is recommended for browser security checks such as Cloudflare Turnstile.'}
             value={customUserAgent}
             onChangeText={onCustomUserAgentChange}
-            placeholder="Mozilla/5.0 (Linux; Android 13; ...) Chrome/131..."
+            placeholder="Leave empty to use Android WebView"
             autoCapitalize="none"
             multiline={true}
           />
           {customUserAgent.trim() !== '' && (
             <SettingsInfoBox variant="warning">
               <Text style={styles.infoText}>
-                ⚠️ Custom User Agent is active. Some sites may behave unexpectedly with non-standard UA strings.
+                ⚠️ Custom User Agent is active. Browser security checks may reject an identity that does not match the real WebView engine.
               </Text>
             </SettingsInfoBox>
           )}
