@@ -1,13 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, NativeModules } from 'react-native';
-import { verifySecurePin, getLockoutStatus, hasSecurePin } from '../utils/secureStorage';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  NativeModules,
+  ScrollView,
+} from 'react-native';
+import {
+  verifySecurePin,
+  getLockoutStatus,
+  hasSecurePin,
+} from '../utils/secureStorage';
 import { StorageService } from '../utils/storage';
 import WifiDialog from './WifiDialog';
 import BluetoothDialog from './BluetoothDialog';
 import AudioOutputDialog from './AudioOutputDialog';
 import BrightnessDialog from './BrightnessDialog';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { RC_THEME } from '../theme/relicCommanderTheme';
 
-const { KioskModule, AudioControlModule, FlashlightModule, RotationControlModule } = NativeModules;
+const {
+  KioskModule,
+  AudioControlModule,
+  FlashlightModule,
+  RotationControlModule,
+} = NativeModules;
 
 interface PinInputProps {
   onSuccess: () => void;
@@ -53,7 +74,16 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
   }, []);
 
   const loadLockscreenSettings = async (): Promise<void> => {
-    const [controlsEnabled, wifi, bluetooth, audio, emergency, flashlight, brightness, rotationLock] = await Promise.all([
+    const [
+      controlsEnabled,
+      wifi,
+      bluetooth,
+      audio,
+      emergency,
+      flashlight,
+      brightness,
+      rotationLock,
+    ] = await Promise.all([
       StorageService.getLockscreenControlsEnabled(),
       StorageService.getLockscreenWifiEnabled(),
       StorageService.getLockscreenBluetoothEnabled(),
@@ -131,7 +161,9 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
     if (isLockedOut) {
       Alert.alert(
         '🔒 Locked Out',
-        `Too many failed attempts.\n\nTry again in ${Math.ceil(lockoutTimeRemaining / 60000)} minutes.`
+        `Too many failed attempts.\n\nTry again in ${Math.ceil(
+          lockoutTimeRemaining / 60000,
+        )} minutes.`,
       );
       return;
     }
@@ -158,14 +190,14 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
           Alert.alert(
             '🔒 Too Many Failed Attempts',
             result.message || 'Account locked for 15 minutes',
-            [{ text: 'OK' }]
+            [{ text: 'OK' }],
           );
         } else {
           setAttemptsRemaining(result.attemptsRemaining || 0);
           Alert.alert(
             '❌ Incorrect PIN',
             `${result.attemptsRemaining || 0} attempts remaining`,
-            [{ text: 'Try Again' }]
+            [{ text: 'Try Again' }],
           );
         }
       }
@@ -227,7 +259,10 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
     }
 
     if (!rotationLockAvailable || !RotationControlModule?.setLocked) {
-      Alert.alert('Rotation lock', 'Rotation lock is not available on this device right now.');
+      Alert.alert(
+        'Rotation lock',
+        'Rotation lock is not available on this device right now.',
+      );
       return;
     }
 
@@ -262,87 +297,138 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
     showRotationLockButton;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{pinMode === 'alphanumeric' ? 'Enter Password' : 'Enter PIN Code'}</Text>
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.brandHeader}>
+        <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
+        <Text style={styles.brandTitle}>Admin authorization</Text>
+        <Text style={styles.brandSubtitle}>RESTRICTED DEVICE CONTROL</Text>
+      </View>
 
-      {isLockedOut ? (
-        <>
-          <View style={styles.lockoutContainer}>
-            <Text style={styles.lockoutIcon}>🔒</Text>
-            <Text style={styles.lockoutTitle}>Account Locked</Text>
-            <Text style={styles.lockoutText}>
-              Too many failed attempts
-            </Text>
-            <Text style={styles.lockoutTimer}>
-              Retry in: {formatTime(lockoutTimeRemaining)}
-            </Text>
-          </View>
-        </>
-      ) : (
-        <>
-          {!hasPinConfigured && (
-            <Text style={styles.subtitle}>Default code: 1234</Text>
-          )}
+      <View style={styles.authCard}>
+        <View style={styles.lockIconShell}>
+          <MaterialCommunityIcons
+            name="shield-lock-outline"
+            size={34}
+            color={RC_THEME.colors.accentBright}
+          />
+        </View>
+        <Text style={styles.title}>
+          {pinMode === 'alphanumeric' ? 'Enter password' : 'Enter PIN code'}
+        </Text>
 
-          {attemptsRemaining < 5 && (
-            <View style={styles.warningContainer}>
-              <Text style={styles.warningText}>
-                ⚠️ {attemptsRemaining} attempts remaining
+        {isLockedOut ? (
+          <>
+            <View style={styles.lockoutContainer}>
+              <MaterialCommunityIcons
+                name="lock-alert"
+                size={46}
+                color={RC_THEME.colors.danger}
+                style={styles.lockoutIcon}
+              />
+              <Text style={styles.lockoutTitle}>Account Locked</Text>
+              <Text style={styles.lockoutText}>Too many failed attempts</Text>
+              <Text style={styles.lockoutTimer}>
+                Retry in: {formatTime(lockoutTimeRemaining)}
               </Text>
             </View>
-          )}
-
-          <TextInput
-            ref={inputRef}
-            style={[styles.input, isLoading && styles.inputDisabled]}
-            value={pin}
-            onChangeText={handlePinChange}
-            secureTextEntry={true}
-            keyboardType={pinMode === 'alphanumeric' ? 'default' : 'numeric'}
-            maxLength={pinMode === 'alphanumeric' ? undefined : 6}
-            placeholder={pinMode === 'alphanumeric' ? 'Enter password' : '••••'}
-            placeholderTextColor="#999999"
-            autoCapitalize={pinMode === 'alphanumeric' ? 'none' : undefined}
-            autoCorrect={false}
-            autoComplete="off"
-            textContentType="none"
-            importantForAutofill="no"
-            editable={!isLoading && !isLockedOut}
-          />
-
-          <TouchableOpacity
-            style={[styles.button, (isLoading || isLockedOut) && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={isLoading || isLockedOut}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Validate</Text>
+          </>
+        ) : (
+          <>
+            {!hasPinConfigured && (
+              <Text style={styles.subtitle}>Default code: 1234</Text>
             )}
-          </TouchableOpacity>
-        </>
-      )}
+
+            {attemptsRemaining < 5 && (
+              <View style={styles.warningContainer}>
+                <Text style={styles.warningText}>
+                  ⚠️ {attemptsRemaining} attempts remaining
+                </Text>
+              </View>
+            )}
+
+            <TextInput
+              ref={inputRef}
+              style={[styles.input, isLoading && styles.inputDisabled]}
+              value={pin}
+              onChangeText={handlePinChange}
+              secureTextEntry={true}
+              keyboardType={pinMode === 'alphanumeric' ? 'default' : 'numeric'}
+              maxLength={pinMode === 'alphanumeric' ? undefined : 6}
+              placeholder={
+                pinMode === 'alphanumeric' ? 'Enter password' : '••••'
+              }
+              placeholderTextColor={RC_THEME.colors.textMuted}
+              autoCapitalize={pinMode === 'alphanumeric' ? 'none' : undefined}
+              autoCorrect={false}
+              autoComplete="off"
+              textContentType="none"
+              importantForAutofill="no"
+              editable={!isLoading && !isLockedOut}
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.button,
+                (isLoading || isLockedOut) && styles.buttonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={isLoading || isLockedOut}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={RC_THEME.colors.textInverse} />
+              ) : (
+                <Text style={styles.buttonText}>Unlock settings</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
 
       {hasQuickControls && (
         <View style={styles.quickControls}>
           {showWifiButton && (
-            <TouchableOpacity style={styles.quickBtn} onPress={() => setWifiDialogVisible(true)}>
-              <Text style={styles.quickBtnIcon}>📶</Text>
+            <TouchableOpacity
+              style={styles.quickBtn}
+              onPress={() => setWifiDialogVisible(true)}
+            >
+              <MaterialCommunityIcons
+                name="wifi"
+                size={27}
+                color={RC_THEME.colors.accentBright}
+              />
               <Text style={styles.quickBtnLabel}>Wi-Fi</Text>
             </TouchableOpacity>
           )}
 
           {showBluetoothButton && (
-            <TouchableOpacity style={styles.quickBtn} onPress={() => setBluetoothDialogVisible(true)}>
-              <Text style={styles.quickBtnIcon}>🔵</Text>
+            <TouchableOpacity
+              style={styles.quickBtn}
+              onPress={() => setBluetoothDialogVisible(true)}
+            >
+              <MaterialCommunityIcons
+                name="bluetooth"
+                size={27}
+                color={RC_THEME.colors.accentBright}
+              />
               <Text style={styles.quickBtnLabel}>Bluetooth</Text>
             </TouchableOpacity>
           )}
 
           {showAudioControls && (
-            <TouchableOpacity style={styles.quickBtn} onPress={handleAudioPress}>
-              <Text style={styles.quickBtnIcon}>🔊</Text>
+            <TouchableOpacity
+              style={styles.quickBtn}
+              onPress={handleAudioPress}
+            >
+              <MaterialCommunityIcons
+                name="volume-high"
+                size={27}
+                color={RC_THEME.colors.accentBright}
+              />
               <Text style={styles.quickBtnLabel}>Audio</Text>
             </TouchableOpacity>
           )}
@@ -353,14 +439,31 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
               onPress={handleFlashlightPress}
               disabled={flashlightBusy}
             >
-              <Text style={styles.quickBtnIcon}>{flashlightOn ? '💡' : '🔦'}</Text>
-              <Text style={styles.quickBtnLabel}>{flashlightOn ? 'Light Off' : 'Light On'}</Text>
+              <MaterialCommunityIcons
+                name={flashlightOn ? 'flashlight-off' : 'flashlight'}
+                size={27}
+                color={
+                  flashlightOn
+                    ? RC_THEME.colors.warning
+                    : RC_THEME.colors.accentBright
+                }
+              />
+              <Text style={styles.quickBtnLabel}>
+                {flashlightOn ? 'Light Off' : 'Light On'}
+              </Text>
             </TouchableOpacity>
           )}
 
           {showBrightnessButton && (
-            <TouchableOpacity style={styles.quickBtn} onPress={() => setBrightnessDialogVisible(true)}>
-              <Text style={styles.quickBtnIcon}>☀️</Text>
+            <TouchableOpacity
+              style={styles.quickBtn}
+              onPress={() => setBrightnessDialogVisible(true)}
+            >
+              <MaterialCommunityIcons
+                name="brightness-6"
+                size={27}
+                color={RC_THEME.colors.accentBright}
+              />
               <Text style={styles.quickBtnLabel}>Brightness</Text>
             </TouchableOpacity>
           )}
@@ -371,127 +474,222 @@ const PinInput: React.FC<PinInputProps> = ({ onSuccess }) => {
               onPress={handleRotationLockPress}
               disabled={rotationBusy}
             >
-              <Text style={styles.quickBtnIcon}>{rotationLocked ? '🔒' : '🔓'}</Text>
+              <MaterialCommunityIcons
+                name={
+                  rotationLocked ? 'screen-rotation-lock' : 'screen-rotation'
+                }
+                size={27}
+                color={
+                  rotationLocked
+                    ? RC_THEME.colors.warning
+                    : RC_THEME.colors.accentBright
+                }
+              />
               <Text style={styles.quickBtnLabel}>Rotate</Text>
             </TouchableOpacity>
           )}
 
           {showEmergencyButton && (
-            <TouchableOpacity style={[styles.quickBtn, styles.emergencyBtn]} onPress={handleEmergencyCall}>
-              <Text style={styles.quickBtnIcon}>🆘</Text>
-              <Text style={[styles.quickBtnLabel, styles.emergencyLabel]}>Emergency</Text>
+            <TouchableOpacity
+              style={[styles.quickBtn, styles.emergencyBtn]}
+              onPress={handleEmergencyCall}
+            >
+              <MaterialCommunityIcons
+                name="phone-alert"
+                size={27}
+                color={RC_THEME.colors.danger}
+              />
+              <Text style={[styles.quickBtnLabel, styles.emergencyLabel]}>
+                Emergency
+              </Text>
             </TouchableOpacity>
           )}
         </View>
       )}
 
-      <WifiDialog visible={wifiDialogVisible} onClose={() => setWifiDialogVisible(false)} />
-      <BluetoothDialog visible={bluetoothDialogVisible} onClose={() => setBluetoothDialogVisible(false)} />
-      <AudioOutputDialog visible={audioDialogVisible} onClose={() => setAudioDialogVisible(false)} />
-      <BrightnessDialog visible={brightnessDialogVisible} onClose={() => setBrightnessDialogVisible(false)} />
-    </View>
+      <WifiDialog
+        visible={wifiDialogVisible}
+        onClose={() => setWifiDialogVisible(false)}
+      />
+      <BluetoothDialog
+        visible={bluetoothDialogVisible}
+        onClose={() => setBluetoothDialogVisible(false)}
+      />
+      <AudioOutputDialog
+        visible={audioDialogVisible}
+        onClose={() => setAudioDialogVisible(false)}
+      />
+      <BrightnessDialog
+        visible={brightnessDialogVisible}
+        onClose={() => setBrightnessDialogVisible(false)}
+      />
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
+    backgroundColor: RC_THEME.colors.background,
+  },
+  container: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
+    backgroundColor: RC_THEME.colors.background,
+    paddingHorizontal: 20,
+    paddingTop: 82,
+    paddingBottom: 24,
+  },
+  brandHeader: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  eyebrow: {
+    color: RC_THEME.colors.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  brandTitle: {
+    marginTop: 5,
+    color: RC_THEME.colors.textPrimary,
+    fontSize: 23,
+    fontWeight: '700',
+    letterSpacing: 1.3,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  brandSubtitle: {
+    marginTop: 5,
+    color: RC_THEME.colors.textMuted,
+    fontSize: 10,
+    letterSpacing: 1.4,
+  },
+  authCard: {
+    width: '100%',
+    maxWidth: 420,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.borderStrong,
+    borderRadius: RC_THEME.radius.large,
+    backgroundColor: RC_THEME.colors.surfaceCard,
+    ...RC_THEME.shadow.card,
+  },
+  lockIconShell: {
+    width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.pill,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
+    ...RC_THEME.shadow.glow,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
+    marginBottom: 14,
+    color: RC_THEME.colors.textSection,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   subtitle: {
+    marginBottom: 18,
+    color: RC_THEME.colors.warning,
     fontSize: 14,
-    color: '#666',
-    marginBottom: 30,
   },
   input: {
-    width: '80%',
+    width: '100%',
     height: 60,
-    borderWidth: 2,
-    borderColor: '#0066cc',
-    borderRadius: 8,
+    marginBottom: 18,
     paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.surfaceInput,
+    color: RC_THEME.colors.textPrimary,
     fontSize: 24,
-    color: '#333333',
-    backgroundColor: '#fff',
-    marginBottom: 20,
-    textAlign: 'center',
     letterSpacing: 10,
+    textAlign: 'center',
   },
   inputDisabled: {
-    backgroundColor: '#e0e0e0',
-    borderColor: '#999',
+    borderColor: RC_THEME.colors.disabled,
+    backgroundColor: RC_THEME.colors.surfaceElevated,
     opacity: 0.6,
   },
   button: {
-    backgroundColor: '#0066cc',
+    minWidth: 220,
+    alignItems: 'center',
     paddingHorizontal: 50,
     paddingVertical: 15,
-    borderRadius: 8,
-    minWidth: 200,
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.small,
+    backgroundColor: RC_THEME.colors.primaryPressed,
+    ...RC_THEME.shadow.glow,
   },
   buttonDisabled: {
-    backgroundColor: '#999',
+    borderColor: RC_THEME.colors.disabled,
+    backgroundColor: RC_THEME.colors.surfaceElevated,
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: RC_THEME.colors.textInverse,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   warningContainer: {
-    backgroundColor: '#fff3cd',
-    borderWidth: 1,
-    borderColor: '#ffc107',
-    borderRadius: 8,
+    width: '100%',
+    marginBottom: 18,
     padding: 12,
-    marginBottom: 20,
-    width: '80%',
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.warning,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
   },
   warningText: {
-    color: '#856404',
+    color: RC_THEME.colors.warning,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
   lockoutContainer: {
+    width: '100%',
     alignItems: 'center',
-    padding: 30,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    width: '80%',
-    borderWidth: 2,
-    borderColor: '#dc3545',
+    padding: 24,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.danger,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.dangerBackground,
   },
   lockoutIcon: {
-    fontSize: 64,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   lockoutTitle: {
+    marginBottom: 8,
+    color: RC_THEME.colors.danger,
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#dc3545',
-    marginBottom: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   lockoutText: {
+    marginBottom: 16,
+    color: RC_THEME.colors.textSecondary,
     fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
     textAlign: 'center',
   },
   lockoutTimer: {
+    color: RC_THEME.colors.danger,
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#dc3545',
+    fontWeight: '700',
     fontFamily: 'monospace',
   },
   quickControls: {
@@ -502,41 +700,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     rowGap: 10,
-    marginTop: 28,
+    marginTop: 18,
   },
   quickBtn: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 8,
-    elevation: 3,
     width: '31%',
     minHeight: 72,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.surface,
   },
   quickBtnActive: {
-    borderColor: '#f0b400',
-    backgroundColor: '#fff7d6',
-  },
-  quickBtnIcon: {
-    fontSize: 28,
-    marginBottom: 4,
+    borderColor: RC_THEME.colors.warning,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
   },
   quickBtnLabel: {
+    marginTop: 5,
+    color: RC_THEME.colors.textSection,
     fontSize: 11,
-    fontWeight: '600',
-    color: '#444',
+    fontWeight: '700',
     textAlign: 'center',
+    textTransform: 'uppercase',
   },
   emergencyBtn: {
-    borderColor: '#dc3545',
-    borderWidth: 2,
+    borderColor: RC_THEME.colors.danger,
   },
   emergencyLabel: {
-    color: '#dc3545',
+    color: RC_THEME.colors.danger,
   },
 });
 

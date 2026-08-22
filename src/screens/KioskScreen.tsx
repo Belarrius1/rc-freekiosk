@@ -3283,6 +3283,13 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     setQuickSettingsDialogVisible(true);
   };
 
+  const handleOpenWifiSettings = (): void => {
+    clearTimer();
+    setIsScreensaverActive(false);
+    setQuickSettingsDialogVisible(false);
+    setWifiDialogVisible(true);
+  };
+
   const handleCloseQuickSettings = (): void => {
     setQuickSettingsDialogVisible(false);
     resetTimer();
@@ -3368,6 +3375,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
                   markUserInteraction();
                 }
               }}
+              onOpenWifiSettings={handleOpenWifiSettings}
               urlFilterMode={urlFilterEnabled ? urlFilterMode : undefined}
               urlFilterPatterns={urlFilterEnabled ? urlFilterList : undefined}
               urlFilterShowFeedback={urlFilterShowFeedback}

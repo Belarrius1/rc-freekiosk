@@ -58,6 +58,7 @@ interface WebViewComponentProps {
     title: string;
   }) => void; // Callback for web navigation state
   onPageNavigated?: (url: string) => void; // Callback when page URL changes (for inactivity return)
+  onOpenWifiSettings?: () => void; // Open the customer-safe in-app Wi-Fi controls
   urlFilterMode?: string; // 'whitelist' or 'blacklist'
   urlFilterPatterns?: string[]; // URL patterns to filter
   urlFilterShowFeedback?: boolean; // Show feedback when URL is blocked
@@ -99,6 +100,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       showBackButton = false,
       onNavigationStateChange,
       onPageNavigated,
+      onOpenWifiSettings,
       urlFilterMode,
       urlFilterPatterns,
       urlFilterShowFeedback = false,
@@ -1345,13 +1347,13 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
 
               <View style={styles.wifiHelpCard}>
                 <MaterialCommunityIcons
-                  name="cog"
+                  name="wifi-cog"
                   size={24}
                   color={RC_THEME.colors.accentBright}
                 />
                 <Text style={styles.wifiHelpText}>
-                  Use the settings icon in the top-right corner to connect this
-                  tablet to Wi-Fi.
+                  Connect this tablet to Wi-Fi, then try reaching Relic
+                  Commander Terminal again.
                 </Text>
               </View>
 
@@ -1384,6 +1386,22 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                 />
                 <Text style={styles.reloadText}>Try again now</Text>
               </TouchableOpacity>
+
+              {onOpenWifiSettings && (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Open Wi-Fi settings"
+                  style={styles.wifiSettingsButton}
+                  onPress={onOpenWifiSettings}
+                >
+                  <MaterialCommunityIcons
+                    name="wifi-cog"
+                    size={19}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                  <Text style={styles.wifiSettingsText}>Wi-Fi settings</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Invisible admin-only hotspot: five taps still open the protected PIN screen. */}
@@ -1712,6 +1730,27 @@ const styles = StyleSheet.create({
   },
   reloadText: {
     color: RC_THEME.colors.textInverse,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  wifiSettingsButton: {
+    minWidth: 210,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 13,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.borderStrong,
+    borderRadius: RC_THEME.radius.small,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
+  },
+  wifiSettingsText: {
+    color: RC_THEME.colors.accentBright,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 1,

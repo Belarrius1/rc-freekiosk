@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   Modal,
+  NativeModules,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import BrightnessModule from '../utils/BrightnessModule';
 import { RC_THEME } from '../theme/relicCommanderTheme';
+
+const { SystemInfoModule } = NativeModules;
 
 export type KioskQuickSetting = 'wifi' | 'audio' | 'brightness' | 'bluetooth';
 
@@ -17,6 +21,22 @@ interface Props {
   onClose: () => void;
   onSelect: (setting: KioskQuickSetting) => void;
 }
+
+interface QuickStatus {
+  batteryLevel: number | null;
+  isCharging: boolean;
+  wifiConnected: boolean;
+  wifiSsid: string;
+  brightness: number | null;
+}
+
+const EMPTY_STATUS: QuickStatus = {
+  batteryLevel: null,
+  isCharging: false,
+  wifiConnected: false,
+  wifiSsid: '',
+  brightness: null,
+};
 
 const QUICK_SETTINGS: Array<{
   key: KioskQuickSetting;
@@ -35,6 +55,59 @@ export default function KioskQuickSettingsDialog({
   onClose,
   onSelect,
 }: Props) {
+  const [status, setStatus] = useState<QuickStatus>(EMPTY_STATUS);
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+
+    const updateStatus = async () => {
+      try {
+        const info = await SystemInfoModule?.getSystemInfo?.();
+        if (active && info) {
+          setStatus(current => ({
+            ...current,
+            batteryLevel:
+              typeof info.battery?.level === 'number'
+                ? info.battery.level
+                : null,
+            isCharging: Boolean(info.battery?.isCharging),
+            wifiConnected: Boolean(info.wifi?.isConnected),
+            wifiSsid: info.wifi?.ssid || '',
+          }));
+        }
+      } catch (error) {
+        console.warn('[QuickSettings] system status error:', error);
+      }
+
+      try {
+        const brightness = await BrightnessModule.getBrightnessLevel();
+        if (active) {
+          setStatus(current => ({ ...current, brightness }));
+        }
+      } catch (error) {
+        console.warn('[QuickSettings] brightness status error:', error);
+      }
+    };
+
+    updateStatus();
+    const interval = setInterval(updateStatus, 5000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [visible]);
+
+  const batteryLabel =
+    status.batteryLevel === null ? '--' : `${status.batteryLevel}%`;
+  const brightnessLabel =
+    status.brightness === null
+      ? '--'
+      : `${Math.round(status.brightness * 100)}%`;
+  const wifiLabel = status.wifiConnected
+    ? status.wifiSsid || 'Connected'
+    : 'Offline';
+
   return (
     <Modal
       visible={visible}
@@ -76,6 +149,42 @@ export default function KioskQuickSettingsDialog({
             resizeMode="contain"
             style={styles.terminalLogo}
           />
+
+          <View style={styles.statusRow}>
+            <View style={styles.statusItem}>
+              <MaterialCommunityIcons
+                name={status.isCharging ? 'battery-charging' : 'battery'}
+                size={20}
+                color={RC_THEME.colors.accentBright}
+              />
+              <Text style={styles.statusLabel}>Battery</Text>
+              <Text style={styles.statusValue}>{batteryLabel}</Text>
+            </View>
+            <View style={styles.statusItem}>
+              <MaterialCommunityIcons
+                name={status.wifiConnected ? 'wifi' : 'wifi-off'}
+                size={20}
+                color={
+                  status.wifiConnected
+                    ? RC_THEME.colors.success
+                    : RC_THEME.colors.danger
+                }
+              />
+              <Text style={styles.statusLabel}>Wi-Fi</Text>
+              <Text style={styles.statusValue} numberOfLines={1}>
+                {wifiLabel}
+              </Text>
+            </View>
+            <View style={styles.statusItem}>
+              <MaterialCommunityIcons
+                name="brightness-6"
+                size={20}
+                color={RC_THEME.colors.accentBright}
+              />
+              <Text style={styles.statusLabel}>Brightness</Text>
+              <Text style={styles.statusValue}>{brightnessLabel}</Text>
+            </View>
+          </View>
 
           <View style={styles.grid}>
             {QUICK_SETTINGS.map(setting => (
@@ -157,11 +266,44 @@ const styles = StyleSheet.create({
     backgroundColor: RC_THEME.colors.surfaceInput,
   },
   terminalLogo: {
-    width: 132,
-    height: 132,
+    width: 112,
+    height: 112,
     alignSelf: 'center',
     marginTop: -4,
+    marginBottom: 14,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
     marginBottom: 16,
+  },
+  statusItem: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 66,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.small,
+    backgroundColor: RC_THEME.colors.surfaceCardDeep,
+  },
+  statusLabel: {
+    marginTop: 3,
+    color: RC_THEME.colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+  },
+  statusValue: {
+    maxWidth: '100%',
+    marginTop: 2,
+    color: RC_THEME.colors.textSection,
+    fontSize: 11,
+    fontWeight: '700',
   },
   grid: {
     flexDirection: 'row',
