@@ -1306,7 +1306,9 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                 size="large"
                 color={RC_THEME.colors.accentBright}
               />
-              <Text style={styles.loadingText}>Contacting command network</Text>
+              <Text style={styles.loadingText}>
+                Contacting Relic Commander Network
+              </Text>
             </View>
             {/* Invisible admin-only hotspot: preserves secret PIN access without advertising it. */}
             <TouchableOpacity
@@ -1332,17 +1334,16 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         {error && (
           <View style={styles.errorContainer}>
             <View style={styles.errorCard}>
-              <View style={styles.errorIconShell}>
-                <MaterialCommunityIcons
-                  name="wifi-alert"
-                  size={38}
-                  color={RC_THEME.colors.accentBright}
-                />
-              </View>
+              <Image
+                accessibilityLabel="Relic Commander Terminal"
+                source={require('../../img/rc-terminal.png')}
+                resizeMode="contain"
+                style={styles.errorTerminalLogo}
+              />
               <Text style={styles.errorEyebrow}>RELIC COMMANDER TERMINAL</Text>
               <Text style={styles.errorText}>Connection unavailable</Text>
               <Text style={styles.errorLead}>
-                Relic Commander Terminal could not be reached.
+                Relic Commander could not be reached.
               </Text>
 
               <View style={styles.wifiHelpCard}>
@@ -1353,12 +1354,12 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                 />
                 <Text style={styles.wifiHelpText}>
                   Connect this tablet to Wi-Fi, then try reaching Relic
-                  Commander Terminal again.
+                  Commander again.
                 </Text>
               </View>
 
               <Text style={styles.errorSubtext}>
-                If Wi-Fi is already connected, Relic Commander Terminal may be
+                If Wi-Fi is already connected, Relic Commander may be
                 temporarily unavailable.
               </Text>
 
@@ -1641,17 +1642,12 @@ const styles = StyleSheet.create({
     backgroundColor: RC_THEME.colors.surfaceCard,
     ...RC_THEME.shadow.card,
   },
-  errorIconShell: {
-    width: 68,
-    height: 68,
-    alignItems: 'center',
-    justifyContent: 'center',
+  errorTerminalLogo: {
+    width: '100%',
+    maxWidth: 272,
+    aspectRatio: 1,
+    alignSelf: 'center',
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: RC_THEME.colors.primary,
-    borderRadius: RC_THEME.radius.pill,
-    backgroundColor: RC_THEME.colors.surfaceAccent,
-    ...RC_THEME.shadow.glow,
   },
   errorEyebrow: {
     marginBottom: 5,

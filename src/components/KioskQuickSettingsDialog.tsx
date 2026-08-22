@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 520,
     padding: 18,
     borderWidth: 1,
     borderColor: RC_THEME.colors.borderStrong,
@@ -266,8 +266,9 @@ const styles = StyleSheet.create({
     backgroundColor: RC_THEME.colors.surfaceInput,
   },
   terminalLogo: {
-    width: 112,
-    height: 112,
+    width: '100%',
+    maxWidth: 336,
+    aspectRatio: 1,
     alignSelf: 'center',
     marginTop: -4,
     marginBottom: 14,
