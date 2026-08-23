@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -101,8 +101,50 @@ export default function KioskQuickSettingsDialog({
   const [updateMessage, setUpdateMessage] = useState(
     'Check for a stable RC-FreeKiosk update.',
   );
+  const updateCheckInFlightRef = useRef(false);
+  const updateInstallationInFlightRef = useRef(false);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+
+  const handleCheckForUpdates = useCallback(async (): Promise<void> => {
+    if (
+      !ENABLE_SELF_UPDATE ||
+      updateCheckInFlightRef.current ||
+      updateInstallationInFlightRef.current
+    ) {
+      return;
+    }
+
+    updateCheckInFlightRef.current = true;
+    setUpdateStatus('checking');
+    setUpdateMessage('Checking the stable release channel…');
+    setUpdateInfo(null);
+
+    try {
+      const [installed, latest] = await Promise.all([
+        UpdateModule.getCurrentVersion(),
+        UpdateModule.checkForUpdates(),
+      ]);
+      setCurrentVersionName(installed.versionName);
+
+      if (isNewerRcRelease(latest.version, installed)) {
+        setUpdateInfo(latest);
+        setUpdateStatus('available');
+        setUpdateMessage('A new update is available.');
+      } else {
+        setUpdateStatus('up_to_date');
+        setUpdateMessage('This Terminal is up to date.');
+      }
+    } catch (error) {
+      console.warn('[Menu] update check failed:', error);
+      setUpdateStatus('error');
+      setUpdateMessage(
+        'Unable to check for updates. Verify the Wi-Fi connection.',
+      );
+    } finally {
+      updateCheckInFlightRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
@@ -140,19 +182,13 @@ export default function KioskQuickSettingsDialog({
     };
 
     refreshQuickStatus();
-    UpdateModule.getCurrentVersion()
-      .then(version => {
-        if (active) setCurrentVersionName(version.versionName);
-      })
-      .catch(error => {
-        console.warn('[Menu] version lookup error:', error);
-      });
+    handleCheckForUpdates();
     const interval = setInterval(refreshQuickStatus, 5000);
     return () => {
       active = false;
       clearInterval(interval);
     };
-  }, [visible]);
+  }, [handleCheckForUpdates, visible]);
 
   const batteryLabel =
     status.batteryLevel === null ? '--' : `${status.batteryLevel}%`;
@@ -169,45 +205,18 @@ export default function KioskQuickSettingsDialog({
   const updateCanInstall =
     updateInfo !== null &&
     (updateStatus === 'available' || updateStatus === 'blocked');
-
-  const handleCheckForUpdates = async (): Promise<void> => {
-    if (!ENABLE_SELF_UPDATE || updateBusy) return;
-
-    setUpdateStatus('checking');
-    setUpdateMessage('Checking the stable release channel…');
-    setUpdateInfo(null);
-
-    try {
-      const [installed, latest] = await Promise.all([
-        UpdateModule.getCurrentVersion(),
-        UpdateModule.checkForUpdates(),
-      ]);
-      setCurrentVersionName(installed.versionName);
-
-      if (isNewerRcRelease(latest.version, installed)) {
-        setUpdateInfo(latest);
-        setUpdateStatus('available');
-        setUpdateMessage(
-          `${versionLabel(latest.version)} is available and ready to download.`,
-        );
-      } else {
-        setUpdateStatus('up_to_date');
-        setUpdateMessage(
-          `${versionLabel(
-            installed.versionName,
-          )} is the latest stable version.`,
-        );
-      }
-    } catch (error) {
-      console.warn('[Menu] update check failed:', error);
-      setUpdateStatus('error');
-      setUpdateMessage(
-        'Unable to check for updates. Verify the Wi-Fi connection.',
-      );
-    }
-  };
+  const availableVersionLabel = updateInfo
+    ? versionLabel(updateInfo.version)
+    : updateStatus === 'checking'
+    ? 'Checking…'
+    : updateStatus === 'up_to_date'
+    ? 'No update'
+    : updateStatus === 'error'
+    ? 'Unavailable'
+    : '--';
 
   const performInstall = async (release: UpdateInfo): Promise<void> => {
+    updateInstallationInFlightRef.current = true;
     setUpdateStatus('installing');
     setUpdateMessage(`Downloading ${versionLabel(release.version)}…`);
 
@@ -218,6 +227,7 @@ export default function KioskQuickSettingsDialog({
       );
       setUpdateMessage('Installation started. The terminal will restart.');
     } catch (error) {
+      updateInstallationInFlightRef.current = false;
       console.warn('[Menu] update installation failed:', error);
       setUpdateStatus('error');
       setUpdateMessage(
@@ -490,6 +500,31 @@ export default function KioskQuickSettingsDialog({
                     <View style={styles.updateTextGroup}>
                       <Text style={styles.updateTitle}>Terminal update</Text>
                       <Text style={styles.updateMessage}>{updateMessage}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.updateVersions}>
+                    <View style={styles.updateVersionItem}>
+                      <Text style={styles.updateVersionLabel}>Installed</Text>
+                      <Text style={styles.updateVersionValue}>
+                        {displayedVersion}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name="arrow-right"
+                      size={18}
+                      color={RC_THEME.colors.textMuted}
+                    />
+                    <View style={styles.updateVersionItem}>
+                      <Text style={styles.updateVersionLabel}>Available</Text>
+                      <Text
+                        style={[
+                          styles.updateVersionValue,
+                          updateCanInstall && styles.updateVersionAvailable,
+                        ]}
+                      >
+                        {availableVersionLabel}
+                      </Text>
                     </View>
                   </View>
 
@@ -776,6 +811,39 @@ const styles = StyleSheet.create({
     color: RC_THEME.colors.textMuted,
     fontSize: 11,
     lineHeight: 15,
+  },
+  updateVersions: {
+    minHeight: 50,
+    marginTop: 11,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.border,
+    borderRadius: RC_THEME.radius.small,
+    backgroundColor: RC_THEME.colors.surfaceInput,
+  },
+  updateVersionItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  updateVersionLabel: {
+    color: RC_THEME.colors.textMuted,
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  updateVersionValue: {
+    marginTop: 3,
+    color: RC_THEME.colors.textSection,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  updateVersionAvailable: {
+    color: RC_THEME.colors.success,
   },
   updateButton: {
     minHeight: 42,
