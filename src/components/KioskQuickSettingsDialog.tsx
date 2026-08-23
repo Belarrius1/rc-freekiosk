@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   Modal,
   NativeModules,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,9 +14,27 @@ import {
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import BrightnessModule from '../utils/BrightnessModule';
+import KioskModule from '../utils/KioskModule';
+import UpdateModule, {
+  ENABLE_SELF_UPDATE,
+  isBatterySafeForPublicUpdate,
+  isNewerRcRelease,
+  isTrustedRcUpdateUrl,
+  MIN_PUBLIC_UPDATE_BATTERY_PERCENT,
+} from '../utils/UpdateModule';
+import type { UpdateInfo } from '../utils/UpdateModule';
 import { RC_THEME } from '../theme/relicCommanderTheme';
 
-const { SystemInfoModule } = NativeModules;
+const { SystemInfoModule, UpdateModule: NativeUpdateModule } = NativeModules;
+
+type PublicUpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'up_to_date'
+  | 'available'
+  | 'installing'
+  | 'blocked'
+  | 'error';
 
 export type KioskQuickSetting = 'wifi' | 'audio' | 'brightness' | 'bluetooth';
 
@@ -52,6 +73,11 @@ const QUICK_SETTINGS: Array<{
   { key: 'bluetooth', label: 'Bluetooth', icon: 'bluetooth' },
 ];
 
+function versionLabel(versionName: string): string {
+  const normalized = versionName.trim().replace(/^v/i, '');
+  return normalized ? `v${normalized}` : 'v--';
+}
+
 /** Customer-safe controls that never open the unrestricted Android Settings app. */
 export default function KioskQuickSettingsDialog({
   visible,
@@ -61,6 +87,16 @@ export default function KioskQuickSettingsDialog({
   onRelicCommanderHome,
 }: Props) {
   const [status, setStatus] = useState<QuickStatus>(EMPTY_STATUS);
+  const [currentVersionName, setCurrentVersionName] = useState<string>(
+    typeof NativeUpdateModule?.VERSION_NAME === 'string'
+      ? NativeUpdateModule.VERSION_NAME
+      : '',
+  );
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateStatus, setUpdateStatus] = useState<PublicUpdateStatus>('idle');
+  const [updateMessage, setUpdateMessage] = useState(
+    'Check for a stable RC-FreeKiosk update.',
+  );
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
@@ -68,14 +104,16 @@ export default function KioskQuickSettingsDialog({
     if (!visible) return;
     let active = true;
 
-    const updateStatus = async () => {
+    const refreshQuickStatus = async () => {
       try {
         const info = await SystemInfoModule?.getSystemInfo?.();
         if (active && info) {
           setStatus(current => ({
             ...current,
             batteryLevel:
-              typeof info.battery?.level === 'number'
+              typeof info.battery?.level === 'number' &&
+              info.battery.level >= 0 &&
+              info.battery.level <= 100
                 ? info.battery.level
                 : null,
             isCharging: Boolean(info.battery?.isCharging),
@@ -97,8 +135,15 @@ export default function KioskQuickSettingsDialog({
       }
     };
 
-    updateStatus();
-    const interval = setInterval(updateStatus, 5000);
+    refreshQuickStatus();
+    UpdateModule.getCurrentVersion()
+      .then(version => {
+        if (active) setCurrentVersionName(version.versionName);
+      })
+      .catch(error => {
+        console.warn('[Menu] version lookup error:', error);
+      });
+    const interval = setInterval(refreshQuickStatus, 5000);
     return () => {
       active = false;
       clearInterval(interval);
@@ -114,6 +159,129 @@ export default function KioskQuickSettingsDialog({
   const wifiLabel = status.wifiConnected
     ? status.wifiSsid || 'Connected'
     : 'Offline';
+  const displayedVersion = versionLabel(currentVersionName);
+  const updateBusy =
+    updateStatus === 'checking' || updateStatus === 'installing';
+  const updateCanInstall =
+    updateInfo !== null &&
+    (updateStatus === 'available' || updateStatus === 'blocked');
+
+  const handleCheckForUpdates = async (): Promise<void> => {
+    if (!ENABLE_SELF_UPDATE || updateBusy) return;
+
+    setUpdateStatus('checking');
+    setUpdateMessage('Checking the stable release channel…');
+    setUpdateInfo(null);
+
+    try {
+      const [installed, latest] = await Promise.all([
+        UpdateModule.getCurrentVersion(),
+        UpdateModule.checkForUpdates(),
+      ]);
+      setCurrentVersionName(installed.versionName);
+
+      if (isNewerRcRelease(latest.version, installed)) {
+        setUpdateInfo(latest);
+        setUpdateStatus('available');
+        setUpdateMessage(
+          `${versionLabel(latest.version)} is available and ready to download.`,
+        );
+      } else {
+        setUpdateStatus('up_to_date');
+        setUpdateMessage(
+          `${versionLabel(
+            installed.versionName,
+          )} is the latest stable version.`,
+        );
+      }
+    } catch (error) {
+      console.warn('[Menu] update check failed:', error);
+      setUpdateStatus('error');
+      setUpdateMessage(
+        'Unable to check for updates. Verify the Wi-Fi connection.',
+      );
+    }
+  };
+
+  const performInstall = async (release: UpdateInfo): Promise<void> => {
+    setUpdateStatus('installing');
+    setUpdateMessage(`Downloading ${versionLabel(release.version)}…`);
+
+    try {
+      await UpdateModule.downloadAndInstallSilently(
+        release.downloadUrl,
+        release.version,
+      );
+      setUpdateMessage('Installation started. The terminal will restart.');
+    } catch (error) {
+      console.warn('[Menu] update installation failed:', error);
+      setUpdateStatus('error');
+      setUpdateMessage(
+        'The update could not be installed. Administrator action is required.',
+      );
+    }
+  };
+
+  const handleInstallUpdate = async (): Promise<void> => {
+    if (!updateInfo || updateBusy) return;
+
+    let batteryLevel: number | null = null;
+    try {
+      const info = await SystemInfoModule?.getSystemInfo?.();
+      const level = info?.battery?.level;
+      batteryLevel =
+        typeof level === 'number' && level >= 0 && level <= 100 ? level : null;
+    } catch (error) {
+      console.warn('[Menu] battery safety check failed:', error);
+    }
+
+    if (!isBatterySafeForPublicUpdate(batteryLevel)) {
+      setUpdateStatus('blocked');
+      setUpdateMessage(
+        batteryLevel === null
+          ? 'Battery level unavailable. Update installation is blocked for safety.'
+          : `Battery must be at least ${MIN_PUBLIC_UPDATE_BATTERY_PERCENT}% to install an update. Current level: ${batteryLevel}%.`,
+      );
+      return;
+    }
+
+    let isDeviceOwner = false;
+    try {
+      isDeviceOwner = await KioskModule.isDeviceOwner();
+    } catch (error) {
+      console.warn('[Menu] Device Owner check failed:', error);
+    }
+
+    if (!isDeviceOwner) {
+      setUpdateStatus('blocked');
+      setUpdateMessage(
+        'Silent installation is unavailable. Administrator action is required.',
+      );
+      return;
+    }
+
+    if (!isTrustedRcUpdateUrl(updateInfo.downloadUrl)) {
+      setUpdateStatus('error');
+      setUpdateMessage('The update source was rejected by the terminal.');
+      return;
+    }
+
+    Alert.alert(
+      'Install RC-FreeKiosk update?',
+      `Install ${versionLabel(
+        updateInfo.version,
+      )} now? The terminal will restart when installation completes.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Install',
+          onPress: () => {
+            performInstall(updateInfo);
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <Modal
@@ -134,13 +302,15 @@ export default function KioskQuickSettingsDialog({
         >
           <View style={styles.header}>
             <View>
-              <Text style={styles.eyebrow}>RELIC COMMANDER TERMINAL</Text>
-              <Text style={styles.title}>Quick settings</Text>
-              <Text style={styles.subtitle}>DEVICE CONTROL</Text>
+              <Text style={styles.eyebrow}>
+                RELIC COMMANDER TERMINAL - {displayedVersion}
+              </Text>
+              <Text style={styles.title}>Menu</Text>
+              <Text style={styles.subtitle}>DEVICE &amp; GAME CONTROL</Text>
             </View>
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel="Close quick settings"
+              accessibilityLabel="Close menu"
               hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
               style={styles.closeButton}
               onPress={onClose}
@@ -153,8 +323,10 @@ export default function KioskQuickSettingsDialog({
             </TouchableOpacity>
           </View>
 
-          <View
-            style={[
+          <ScrollView
+            style={styles.bodyScroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={[
               styles.dialogBody,
               isLandscape && styles.dialogBodyLandscape,
             ]}
@@ -264,8 +436,86 @@ export default function KioskQuickSettingsDialog({
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {ENABLE_SELF_UPDATE && (
+                <View style={styles.updatePanel}>
+                  <View style={styles.updateSummary}>
+                    <MaterialCommunityIcons
+                      name={
+                        updateStatus === 'available'
+                          ? 'update'
+                          : updateStatus === 'up_to_date'
+                          ? 'check-circle-outline'
+                          : updateStatus === 'blocked' ||
+                            updateStatus === 'error'
+                          ? 'alert-circle-outline'
+                          : 'cloud-download-outline'
+                      }
+                      size={25}
+                      color={
+                        updateStatus === 'blocked' || updateStatus === 'error'
+                          ? RC_THEME.colors.warning
+                          : RC_THEME.colors.accentBright
+                      }
+                    />
+                    <View style={styles.updateTextGroup}>
+                      <Text style={styles.updateTitle}>Terminal update</Text>
+                      <Text style={styles.updateMessage}>{updateMessage}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      updateCanInstall
+                        ? `Install ${versionLabel(updateInfo?.version ?? '')}`
+                        : 'Check for updates'
+                    }
+                    disabled={updateBusy}
+                    activeOpacity={0.75}
+                    style={[
+                      styles.updateButton,
+                      updateBusy && styles.updateButtonDisabled,
+                    ]}
+                    onPress={
+                      updateCanInstall
+                        ? handleInstallUpdate
+                        : handleCheckForUpdates
+                    }
+                  >
+                    {updateBusy ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={RC_THEME.colors.textInverse}
+                      />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name={updateCanInstall ? 'download' : 'magnify'}
+                        size={20}
+                        color={RC_THEME.colors.textInverse}
+                      />
+                    )}
+                    <Text style={styles.updateButtonText}>
+                      {updateCanInstall
+                        ? `Install ${versionLabel(updateInfo?.version ?? '')}`
+                        : updateStatus === 'up_to_date'
+                        ? 'Check again'
+                        : updateStatus === 'checking'
+                        ? 'Checking…'
+                        : updateStatus === 'installing'
+                        ? 'Installing…'
+                        : 'Check for updates'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.updateSafetyText}>
+                    Installation requires Device Owner mode and at least 50%
+                    battery.
+                  </Text>
+                </View>
+              )}
             </View>
-          </View>
+          </ScrollView>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -282,6 +532,7 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
+    maxHeight: '92%',
     maxWidth: 520,
     padding: 18,
     borderWidth: 1,
@@ -339,8 +590,12 @@ const styles = StyleSheet.create({
     marginTop: -4,
     marginBottom: 14,
   },
+  bodyScroll: {
+    flexGrow: 0,
+  },
   dialogBody: {
     width: '100%',
+    paddingBottom: 2,
   },
   dialogBodyLandscape: {
     flexDirection: 'row',
@@ -441,5 +696,62 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
+  },
+  updatePanel: {
+    marginTop: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.borderStrong,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.surfaceCardDeep,
+  },
+  updateSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  updateTextGroup: {
+    flex: 1,
+    minWidth: 0,
+  },
+  updateTitle: {
+    color: RC_THEME.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+  },
+  updateMessage: {
+    marginTop: 3,
+    color: RC_THEME.colors.textMuted,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  updateButton: {
+    minHeight: 42,
+    marginTop: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.primary,
+  },
+  updateButtonDisabled: {
+    opacity: 0.6,
+  },
+  updateButtonText: {
+    color: RC_THEME.colors.textInverse,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  updateSafetyText: {
+    marginTop: 8,
+    color: RC_THEME.colors.textMuted,
+    fontSize: 9,
+    lineHeight: 13,
+    textAlign: 'center',
   },
 });

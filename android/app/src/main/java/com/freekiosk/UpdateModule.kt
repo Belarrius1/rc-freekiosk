@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.net.Uri
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
@@ -37,6 +38,11 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
 
     private var downloadId: Long = -1
     private var updatePromise: Promise? = null
+    private var silentOnlyUpdate: Boolean = false
+
+    companion object {
+        private const val MIN_PUBLIC_UPDATE_BATTERY_PERCENT = 50
+    }
 
     @ReactMethod
     fun getCurrentVersion(promise: Promise) {
@@ -231,6 +237,44 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
 
     @ReactMethod
     fun downloadAndInstall(downloadUrl: String, version: String, promise: Promise) {
+        startUpdateDownload(downloadUrl, version, false, promise)
+    }
+
+    /** Public kiosk path: install silently or fail without opening any system UI. */
+    @ReactMethod
+    fun downloadAndInstallSilently(downloadUrl: String, version: String, promise: Promise) {
+        if (!isTrustedPublicUpdateUrl(downloadUrl)) {
+            promise.reject("UNTRUSTED_UPDATE_URL", "Public updates must use the official RC-FreeKiosk GitHub release path")
+            return
+        }
+        startUpdateDownload(downloadUrl, version, true, promise)
+    }
+
+    private fun isTrustedPublicUpdateUrl(value: String): Boolean {
+        return try {
+            val uri = Uri.parse(value)
+            uri.scheme.equals("https", ignoreCase = true) &&
+                uri.host.equals("github.com", ignoreCase = true) &&
+                uri.port == -1 &&
+                uri.userInfo == null &&
+                uri.path?.startsWith("/Belarrius1/rc-freekiosk/releases/download/", ignoreCase = true) == true &&
+                uri.path?.endsWith(".apk", ignoreCase = true) == true
+        } catch (_error: Exception) {
+            false
+        }
+    }
+
+    private fun hasSafeBatteryForPublicUpdate(): Boolean {
+        return try {
+            val batteryManager = reactApplicationContext.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            val level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            level in MIN_PUBLIC_UPDATE_BATTERY_PERCENT..100
+        } catch (_error: Exception) {
+            false
+        }
+    }
+
+    private fun startUpdateDownload(downloadUrl: String, version: String, silentOnly: Boolean, promise: Promise) {
         if (!BuildConfig.ENABLE_SELF_UPDATE) {
             promise.reject("DISABLED", "Self-update is disabled in Play Store builds")
             return
@@ -244,6 +288,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             }
             
             updatePromise = promise
+            silentOnlyUpdate = silentOnly
             
             // Clean up old downloaded APKs
             try {
@@ -339,8 +384,13 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                                 
                                 if (uri != null) {
                                     android.util.Log.d("UpdateModule", "Installing APK from: $uri")
-                                    installApk(uri)
-                                    updatePromise?.resolve(true)
+                                    if (silentOnlyUpdate && !hasSafeBatteryForPublicUpdate()) {
+                                        updatePromise?.reject("LOW_BATTERY", "Battery must be at least 50% at installation time")
+                                    } else if (installApk(uri, silentOnlyUpdate)) {
+                                        updatePromise?.resolve(true)
+                                    } else {
+                                        updatePromise?.reject("SILENT_INSTALL_UNAVAILABLE", "Silent installation is unavailable; administrator action is required")
+                                    }
                                 } else {
                                     android.util.Log.e("UpdateModule", "Failed to get downloaded file URI")
                                     updatePromise?.reject("ERROR", "Failed to get downloaded file URI")
@@ -389,7 +439,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         }
     }
 
-    private fun installApk(uri: Uri) {
+    private fun installApk(uri: Uri, silentOnly: Boolean): Boolean {
         try {
             // Try silent install if in Device Owner mode
             val dpm = reactApplicationContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -429,15 +479,17 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                         }
                         
                         // Create install intent
-                        val intent = Intent(reactApplicationContext, UpdateInstallReceiver::class.java)
+                        val intent = Intent(reactApplicationContext, UpdateInstallReceiver::class.java).apply {
+                            putExtra(UpdateInstallReceiver.EXTRA_SILENT_ONLY, silentOnly)
+                        }
                         val pendingIntent = android.app.PendingIntent.getBroadcast(
                             reactApplicationContext,
-                            0,
+                            sessionId,
                             intent,
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                android.app.PendingIntent.FLAG_MUTABLE
+                                android.app.PendingIntent.FLAG_MUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
                             } else {
-                                0
+                                android.app.PendingIntent.FLAG_UPDATE_CURRENT
                             }
                         )
                         
@@ -445,7 +497,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
                         session.close()
                         
                         android.util.Log.d("UpdateModule", "Silent install initiated")
-                        return
+                        return true
                     }
                 }
                 
@@ -458,6 +510,11 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
             android.util.Log.d("UpdateModule", "Falling back to normal install method")
         }
         
+        if (silentOnly) {
+            android.util.Log.w("UpdateModule", "Silent-only install failed; refusing to open system installation UI")
+            return false
+        }
+
         // Fallback to normal install method
         android.util.Log.d("UpdateModule", "Starting normal APK install from URI: $uri")
         
@@ -488,6 +545,7 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
         // Monitor installation completion for auto-restart (non-Device Owner mode)
         // We can't get a callback for ACTION_VIEW install, so we monitor package changes
         monitorInstallationCompletion()
+        return true
     }
     
     private fun monitorInstallationCompletion() {
@@ -534,10 +592,18 @@ class UpdateModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
  * BroadcastReceiver for silent installation results
  */
 class UpdateInstallReceiver : BroadcastReceiver() {
+    companion object {
+        const val EXTRA_SILENT_ONLY = "com.freekiosk.extra.SILENT_ONLY_UPDATE"
+    }
+
     override fun onReceive(context: Context?, intent: Intent?) {
         val status = intent?.getIntExtra(android.content.pm.PackageInstaller.EXTRA_STATUS, -1)
         when (status) {
             android.content.pm.PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                if (intent?.getBooleanExtra(EXTRA_SILENT_ONLY, false) == true) {
+                    android.util.Log.w("UpdateInstallReceiver", "Silent-only update requires user action; refusing to open system UI")
+                    return
+                }
                 android.util.Log.d("UpdateInstallReceiver", "Installation requires user action")
                 val confirmIntent = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
                 if (confirmIntent != null) {

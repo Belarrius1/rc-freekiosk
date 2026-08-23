@@ -3535,7 +3535,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               testID="kiosk-settings-button"
               accessibilityRole="button"
-              accessibilityLabel="Open quick settings"
+              accessibilityLabel="Open menu"
               activeOpacity={0.9}
               hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
               style={[

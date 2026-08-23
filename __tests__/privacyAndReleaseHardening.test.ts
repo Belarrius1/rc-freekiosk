@@ -126,12 +126,28 @@ describe('RC Terminal tablet layout', () => {
     const quickSettings = readProjectFile(
       'src/components/KioskQuickSettingsDialog.tsx',
     );
+    const nativeUpdater = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/UpdateModule.kt',
+    );
     const webView = readProjectFile('src/components/WebViewComponent.tsx');
     const wifi = readProjectFile('src/components/WifiDialog.tsx');
     const bluetooth = readProjectFile('src/components/BluetoothDialog.tsx');
     const pin = readProjectFile('src/components/PinInput.tsx');
 
     expect(quickSettings).toContain('dialogBodyLandscape');
+    expect(quickSettings).toContain('RELIC COMMANDER TERMINAL -');
+    expect(quickSettings).toContain('<Text style={styles.title}>Menu</Text>');
+    expect(quickSettings).toContain('Check for updates');
+    expect(quickSettings).toContain('isBatterySafeForPublicUpdate');
+    expect(quickSettings).toContain('KioskModule.isDeviceOwner()');
+    expect(quickSettings).toContain('isTrustedRcUpdateUrl');
+    expect(quickSettings).toContain('downloadAndInstallSilently');
+    expect(quickSettings).not.toContain('openInstallPermissionSettings');
+    expect(nativeUpdater).toContain('fun downloadAndInstallSilently');
+    expect(nativeUpdater).toContain('hasSafeBatteryForPublicUpdate');
+    expect(nativeUpdater).toContain('MIN_PUBLIC_UPDATE_BATTERY_PERCENT = 50');
+    expect(nativeUpdater).toContain('if (silentOnly)');
+    expect(nativeUpdater).toContain('refusing to open system installation UI');
     expect(webView).toContain('errorCardLandscape');
     expect(wifi).toContain('headerLandscape');
     expect(bluetooth).toContain('headerLandscape');
