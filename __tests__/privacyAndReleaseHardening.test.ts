@@ -223,3 +223,32 @@ describe('RC Terminal tablet layout', () => {
     expect(kiosk).toContain('musicButtonRight = settingsButtonRight + 46');
   });
 });
+
+describe('RC Terminal quick login hardening', () => {
+  it('keeps the P-256 private key non-exportable in Android Keystore', () => {
+    const nativeAuth = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/RcTerminalAuthModule.kt',
+    );
+
+    expect(nativeAuth).toContain('AndroidKeyStore');
+    expect(nativeAuth).toContain('ECGenParameterSpec("secp256r1")');
+    expect(nativeAuth).toContain('SHA256withECDSA');
+    expect(nativeAuth).toContain('verifiedPublicKey.encoded');
+    expect(nativeAuth).not.toContain('privateKey.encoded');
+    expect(nativeAuth).not.toContain('react-native-keychain');
+  });
+
+  it('hands the one-use ticket to the main WebView with native POST only', () => {
+    const nativeKiosk = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/KioskModule.kt',
+    );
+    const webView = readProjectFile('src/components/WebViewComponent.tsx');
+
+    expect(nativeKiosk).toContain(
+      'webView.postUrl("https://reliccommander.com/terminal/session", postBody)',
+    );
+    expect(nativeKiosk).toContain('body?.fill(0)');
+    expect(webView).toContain('postRcTerminalSession');
+    expect(webView).not.toMatch(/injectJavaScript\([^)]*ticket/s);
+  });
+});

@@ -62,6 +62,7 @@ import KioskQuickSettingsDialog, {
   KioskQuickSetting,
 } from '../components/KioskQuickSettingsDialog';
 import RelicCommanderMusicPlayer from '../components/RelicCommanderMusicPlayer';
+import RcTerminalLoginDialog from '../components/RcTerminalLoginDialog';
 import type {
   MusicPlaybackState,
   RelicCommanderMusicPlayerRef,
@@ -70,6 +71,8 @@ import { FORK_DEFAULTS } from '../config/forkDefaults';
 import { FORK_CAPABILITIES } from '../config/forkCapabilities';
 import { RC_THEME } from '../theme/relicCommanderTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { isRelicCommanderUrl } from '../utils/rcTerminalBridge';
+import type { RcTerminalAssociation } from '../utils/rcTerminalAuth';
 
 const { HttpServerModule } = NativeModules;
 
@@ -112,6 +115,14 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       ready: false,
       playing: false,
     });
+  const [terminalLoginVisible, setTerminalLoginVisible] =
+    useState<boolean>(false);
+  const [terminalSessionErrorStatus, setTerminalSessionErrorStatus] = useState<
+    number | null
+  >(null);
+  const [terminalAssociation, setTerminalAssociation] =
+    useState<RcTerminalAssociation | null>(null);
+  const terminalLoginPromptedRef = useRef(false);
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   const [pauseWebMediaWhenHidden, setPauseWebMediaWhenHidden] =
     useState<boolean>(true);
@@ -3303,6 +3314,18 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     setQuickSettingsDialogVisible(true);
   };
 
+  useEffect(() => {
+    if (
+      displayMode === 'webview' &&
+      isRelicCommanderUrl(url) &&
+      !terminalLoginPromptedRef.current
+    ) {
+      terminalLoginPromptedRef.current = true;
+      setTerminalSessionErrorStatus(null);
+      setTerminalLoginVisible(true);
+    }
+  }, [displayMode, url]);
+
   const handleOpenWifiSettings = (): void => {
     clearTimer();
     setIsScreensaverActive(false);
@@ -3327,6 +3350,38 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     setMusicPlayerVisible(true);
     webViewRef.current?.pauseMedia();
   };
+
+  const handleOpenTerminalAccount = (): void => {
+    clearTimer();
+    setIsScreensaverActive(false);
+    setQuickSettingsDialogVisible(false);
+    setTerminalSessionErrorStatus(null);
+    setTerminalLoginVisible(true);
+  };
+
+  const handleCloseTerminalLogin = (): void => {
+    setTerminalLoginVisible(false);
+    setTerminalSessionErrorStatus(null);
+    resetTimer();
+  };
+
+  const handleTerminalSessionTicket = async (ticket: string): Promise<void> => {
+    setTerminalSessionErrorStatus(null);
+    await webViewRef.current?.postRcTerminalSession(ticket);
+  };
+
+  const handleTerminalSessionError = (statusCode: number): void => {
+    webViewRef.current?.navigateToRelicCommanderHome();
+    setTerminalSessionErrorStatus(statusCode);
+    setTerminalLoginVisible(true);
+  };
+
+  const handleTerminalAssociationChange = useCallback(
+    (association: RcTerminalAssociation | null): void => {
+      setTerminalAssociation(association);
+    },
+    [],
+  );
 
   const handleCloseMusicPlayer = (): void => {
     setMusicPlayerVisible(false);
@@ -3442,6 +3497,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
                   : undefined
               }
               onRenderProcessGone={handleWebViewRenderProcessGone}
+              onTerminalSessionError={handleTerminalSessionError}
             />
           )}
         </>
@@ -3555,6 +3611,15 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         onSelect={handleSelectQuickSetting}
         onMusic={handleOpenMusicPlayer}
         onRelicCommanderHome={handleRelicCommanderHome}
+        onTerminalAccount={handleOpenTerminalAccount}
+        terminalId={terminalAssociation?.terminalId}
+      />
+      <RcTerminalLoginDialog
+        visible={terminalLoginVisible}
+        sessionErrorStatus={terminalSessionErrorStatus}
+        onClose={handleCloseTerminalLogin}
+        onSessionTicket={handleTerminalSessionTicket}
+        onAssociationChange={handleTerminalAssociationChange}
       />
       {displayMode === 'webview' && musicPlayerInitialized && (
         <RelicCommanderMusicPlayer

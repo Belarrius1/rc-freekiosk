@@ -44,6 +44,8 @@ interface Props {
   onSelect: (setting: KioskQuickSetting) => void;
   onMusic: () => void;
   onRelicCommanderHome: () => void;
+  onTerminalAccount: () => void;
+  terminalId?: string | null;
 }
 
 interface QuickStatus {
@@ -85,6 +87,8 @@ export default function KioskQuickSettingsDialog({
   onSelect,
   onMusic,
   onRelicCommanderHome,
+  onTerminalAccount,
+  terminalId,
 }: Props) {
   const [status, setStatus] = useState<QuickStatus>(EMPTY_STATUS);
   const [currentVersionName, setCurrentVersionName] = useState<string>(
@@ -403,6 +407,31 @@ export default function KioskQuickSettingsDialog({
                 ))}
               </View>
 
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Open Terminal account login"
+                activeOpacity={0.75}
+                style={styles.terminalAccountButton}
+                onPress={onTerminalAccount}
+              >
+                <MaterialCommunityIcons
+                  name={terminalId ? 'shield-account' : 'shield-key-outline'}
+                  size={26}
+                  color={RC_THEME.colors.accentBright}
+                />
+                <View style={styles.terminalAccountText}>
+                  <Text style={styles.actionButtonLabel}>Terminal Account</Text>
+                  <Text style={styles.terminalAccountStatus}>
+                    {terminalId || 'Pair or sign in to Relic Commander'}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={24}
+                  color={RC_THEME.colors.textMuted}
+                />
+              </TouchableOpacity>
+
               <View style={styles.actionRow}>
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -509,8 +538,7 @@ export default function KioskQuickSettingsDialog({
                   </TouchableOpacity>
 
                   <Text style={styles.updateSafetyText}>
-                    Installation requires Device Owner mode and at least 50%
-                    battery.
+                    Update requires at least 50% battery.
                   </Text>
                 </View>
               )}
@@ -677,6 +705,28 @@ const styles = StyleSheet.create({
     marginTop: 12,
     flexDirection: 'row',
     gap: 10,
+  },
+  terminalAccountButton: {
+    minHeight: 62,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.surfaceCardDeep,
+  },
+  terminalAccountText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  terminalAccountStatus: {
+    marginTop: 3,
+    color: RC_THEME.colors.textMuted,
+    fontSize: 10,
+    letterSpacing: 0.4,
   },
   actionButton: {
     flex: 1,

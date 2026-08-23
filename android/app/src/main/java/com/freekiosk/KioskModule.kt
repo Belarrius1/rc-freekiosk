@@ -11,6 +11,7 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
+import android.webkit.CookieManager
 import com.facebook.react.uimanager.UIManagerHelper
 import com.facebook.react.uimanager.common.UIManagerType
 import com.facebook.react.bridge.ReactApplicationContext
@@ -23,6 +24,8 @@ import android.os.PowerManager
 import android.view.WindowManager
 import com.facebook.react.bridge.UiThreadUtil
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
 
@@ -114,6 +117,63 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
 
     @ReactMethod
     fun resumeWebView(tag: Int, promise: Promise) = setWebViewPaused(tag, false, promise)
+
+    /** Deliver the one-use RC login ticket without placing it in a URL or JavaScript. */
+    @ReactMethod
+    fun postRelicCommanderSession(tag: Int, ticket: String, promise: Promise) {
+        if (ticket.length !in 16..2048 || !ticket.matches(Regex("^[A-Za-z0-9_-]+={0,2}$"))) {
+            promise.reject("INVALID_TICKET", "Terminal session ticket is invalid")
+            return
+        }
+
+        UiThreadUtil.runOnUiThread {
+            var body: ByteArray? = null
+            try {
+                val uiManager = UIManagerHelper.getUIManager(
+                    reactApplicationContext,
+                    UIManagerType.FABRIC,
+                )
+                val webView = findWebView(uiManager?.resolveView(tag))
+                    ?: throw IllegalStateException("Content WebView is unavailable")
+                val encodedTicket = URLEncoder.encode(ticket, StandardCharsets.UTF_8.name())
+                val postBody = "ticket=$encodedTicket".toByteArray(StandardCharsets.UTF_8)
+                body = postBody
+                webView.postUrl("https://reliccommander.com/terminal/session", postBody)
+                promise.resolve(true)
+            } catch (error: Exception) {
+                promise.reject("SESSION_POST_FAILED", "Unable to open the Terminal session", error)
+            } finally {
+                body?.fill(0)
+                body = null
+            }
+        }
+    }
+
+    /** Daily lock: remove the browser session while retaining the Keystore association. */
+    @ReactMethod
+    fun clearRelicCommanderSession(tag: Int, promise: Promise) {
+        UiThreadUtil.runOnUiThread {
+            try {
+                val uiManager = UIManagerHelper.getUIManager(
+                    reactApplicationContext,
+                    UIManagerType.FABRIC,
+                )
+                val webView = findWebView(uiManager?.resolveView(tag))
+                    ?: throw IllegalStateException("Content WebView is unavailable")
+                webView.stopLoading()
+                webView.clearHistory()
+                webView.clearFormData()
+                val cookieManager = CookieManager.getInstance()
+                cookieManager.removeAllCookies {
+                    cookieManager.flush()
+                    webView.loadUrl("https://reliccommander.com/")
+                    promise.resolve(true)
+                }
+            } catch (error: Exception) {
+                promise.reject("SESSION_CLEAR_FAILED", "Unable to lock the Terminal session", error)
+            }
+        }
+    }
 
     private fun setWebViewPaused(tag: Int, paused: Boolean, promise: Promise) {
         UiThreadUtil.runOnUiThread {

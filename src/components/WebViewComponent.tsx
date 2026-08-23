@@ -71,6 +71,7 @@ interface WebViewComponentProps {
   customUserAgent?: string; // Custom User-Agent string (empty = native Android WebView UA)
   basicAuthCredential?: { username: string; password: string };
   onRenderProcessGone?: (didCrash: boolean) => void; // #198 — renderer process died, ask parent to remount
+  onTerminalSessionError?: (statusCode: number) => void;
 }
 
 export interface WebViewComponentRef {
@@ -82,6 +83,8 @@ export interface WebViewComponentRef {
   clearCache: () => void;
   pauseMedia: () => void;
   resumeMedia: () => void;
+  postRcTerminalSession: (ticket: string) => Promise<void>;
+  clearRcTerminalSession: () => Promise<void>;
 }
 
 // #177 — Pause any HTML5 media playing in the page. Injected on pause as a reliable
@@ -112,6 +115,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       customUserAgent = '',
       basicAuthCredential,
       onRenderProcessGone,
+      onTerminalSessionError,
     },
     ref,
   ) => {
@@ -263,6 +267,29 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
         }
       },
       navigateToRelicCommanderHome: returnToRelicCommanderHome,
+      postRcTerminalSession: async (ticket: string) => {
+        const node = findNodeHandle(containerViewRef.current);
+        if (node == null) {
+          throw new Error('Content WebView is unavailable');
+        }
+        setError(false);
+        setLoading(true);
+        setPageLoaded(false);
+        lastTopFrameUrlRef.current =
+          'https://reliccommander.com/terminal/session';
+        await KioskModule.postRelicCommanderSession(node, ticket);
+      },
+      clearRcTerminalSession: async () => {
+        const node = findNodeHandle(containerViewRef.current);
+        if (node == null) {
+          throw new Error('Content WebView is unavailable');
+        }
+        setError(false);
+        setLoading(true);
+        setPageLoaded(false);
+        lastTopFrameUrlRef.current = RC_TERMINAL_HOME;
+        await KioskModule.clearRelicCommanderSession(node);
+      },
       scrollToTop: () => {
         if (webViewRef.current) {
           webViewRef.current.injectJavaScript(
@@ -828,6 +855,18 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       const statusCode = event.nativeEvent.statusCode;
       const failedUrl = event.nativeEvent.url;
       console.error('[FreeKiosk] HTTP Error:', statusCode, failedUrl);
+
+      // A one-use Terminal ticket can legitimately expire or be refused. Return
+      // to the native PIN flow instead of replacing RC with the generic outage UI.
+      if (
+        failedUrl === 'https://reliccommander.com/terminal/session' &&
+        (statusCode === 401 || statusCode === 500)
+      ) {
+        setLoading(false);
+        setPageLoaded(false);
+        onTerminalSessionError?.(statusCode);
+        return;
+      }
 
       // Only treat the error as fatal when it comes from the main document.
       // onReceivedHttpError also fires for sub-resources (images, scripts,

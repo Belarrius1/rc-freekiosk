@@ -52,6 +52,8 @@ interface KioskModuleInterface {
   // tag is the React node handle of the WebView (from findNodeHandle).
   pauseWebView(tag: number): Promise<boolean>;
   resumeWebView(tag: number): Promise<boolean>;
+  postRelicCommanderSession(tag: number, ticket: string): Promise<boolean>;
+  clearRelicCommanderSession(tag: number): Promise<boolean>;
 }
 
 const { KioskModule } = NativeModules;
