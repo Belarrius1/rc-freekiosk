@@ -93,14 +93,17 @@ export function isNewerRcRelease(
 
 /** Only official stable repository release assets may reach the public updater. */
 export function isTrustedRcUpdateUrl(value: string): boolean {
-  try {
-    const normalizedUrl = new URL(value).href;
-    return /^https:\/\/github\.com\/Belarrius1\/rc-freekiosk\/releases\/download\/[^/?#]+\/[^/?#]+\.apk(?:[?#].*)?$/i.test(
-      normalizedUrl,
-    );
-  } catch {
-    return false;
-  }
+  // Do not depend on the browser URL constructor here. Some Android Hermes
+  // builds do not expose it even though the same value is a valid native URI.
+  // Matching the complete raw value also keeps credentials, ports, alternate
+  // hosts and non-APK assets outside the public updater.
+  return (
+    typeof value === 'string' &&
+    value.length <= 2048 &&
+    /^https:\/\/github\.com\/Belarrius1\/rc-freekiosk\/releases\/download\/[A-Za-z0-9._+-]+\/[A-Za-z0-9._+-]+\.apk$/i.test(
+      value,
+    )
+  );
 }
 
 export function isBatterySafeForPublicUpdate(value: unknown): value is number {

@@ -37,6 +37,11 @@ describe('public RC-FreeKiosk update safeguards', () => {
     ).toBe(true);
     expect(
       isTrustedRcUpdateUrl(
+        'https://github.com/Belarrius1/rc-freekiosk/releases/download/v0.16/RC-FreeKiosk-v0.16.apk',
+      ),
+    ).toBe(true);
+    expect(
+      isTrustedRcUpdateUrl(
         'https://github.com/another/repository/releases/download/v0.14/app.apk',
       ),
     ).toBe(false);
@@ -46,6 +51,16 @@ describe('public RC-FreeKiosk update safeguards', () => {
       ),
     ).toBe(false);
     expect(isTrustedRcUpdateUrl('http://github.com/fake.apk')).toBe(false);
+    expect(
+      isTrustedRcUpdateUrl(
+        'https://github.com@evil.test/Belarrius1/rc-freekiosk/releases/download/v0.16/app.apk',
+      ),
+    ).toBe(false);
+    expect(
+      isTrustedRcUpdateUrl(
+        'https://github.com:444/Belarrius1/rc-freekiosk/releases/download/v0.16/app.apk',
+      ),
+    ).toBe(false);
   });
 
   it('requires a known battery level of at least 50 percent', () => {
