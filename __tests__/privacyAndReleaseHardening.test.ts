@@ -155,4 +155,30 @@ describe('RC Terminal tablet layout', () => {
     );
     expect(manifest).toContain('android:hardwareAccelerated="true"');
   });
+
+  it('keeps links and window.open inside a single native WebView', () => {
+    const webView = readProjectFile('src/components/WebViewComponent.tsx');
+
+    expect(webView).toContain('setSupportMultipleWindows={false}');
+    expect(webView).toContain("originWhitelist={['*']}");
+    expect(webView).not.toContain('onOpenWindow=');
+  });
+
+  it('keeps the RC music player persistent, autoplay-capable and single-window', () => {
+    const player = readProjectFile(
+      'src/components/RelicCommanderMusicPlayer.tsx',
+    );
+    const kiosk = readProjectFile('src/screens/KioskScreen.tsx');
+
+    expect(player).toContain('RC_TERMINAL_MUSIC_PLAYER');
+    expect(player).toContain('mediaPlaybackRequiresUserAction={false}');
+    expect(player).toContain('setSupportMultipleWindows={false}');
+    expect(player).toContain('thirdPartyCookiesEnabled');
+    expect(player).toContain("originWhitelist={['*']}");
+    expect(player).toContain('onNavigationStateChange=');
+    expect(kiosk).toContain('musicPlayerInitialized &&');
+    expect(kiosk).toContain('setMusicPlayerInitialized(true)');
+    expect(kiosk).toContain('handleOpenMusicPlayer');
+    expect(kiosk).toContain('handleCloseMusicPlayer');
+  });
 });

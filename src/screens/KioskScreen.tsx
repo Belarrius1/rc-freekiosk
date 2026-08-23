@@ -61,6 +61,7 @@ import BrightnessDialog from '../components/BrightnessDialog';
 import KioskQuickSettingsDialog, {
   KioskQuickSetting,
 } from '../components/KioskQuickSettingsDialog';
+import RelicCommanderMusicPlayer from '../components/RelicCommanderMusicPlayer';
 import { FORK_DEFAULTS } from '../config/forkDefaults';
 import { FORK_CAPABILITIES } from '../config/forkCapabilities';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -94,6 +95,9 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [audioDialogVisible, setAudioDialogVisible] = useState<boolean>(false);
   const [brightnessDialogVisible, setBrightnessDialogVisible] =
     useState<boolean>(false);
+  const [musicPlayerInitialized, setMusicPlayerInitialized] =
+    useState<boolean>(false);
+  const [musicPlayerVisible, setMusicPlayerVisible] = useState<boolean>(false);
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   const [pauseWebMediaWhenHidden, setPauseWebMediaWhenHidden] =
     useState<boolean>(true);
@@ -3291,6 +3295,25 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     resetTimer();
   };
 
+  const handleRelicCommanderHome = (): void => {
+    setQuickSettingsDialogVisible(false);
+    webViewRef.current?.navigateToRelicCommanderHome();
+    resetTimer();
+  };
+
+  const handleOpenMusicPlayer = (): void => {
+    setQuickSettingsDialogVisible(false);
+    setMusicPlayerInitialized(true);
+    setMusicPlayerVisible(true);
+    webViewRef.current?.pauseMedia();
+  };
+
+  const handleCloseMusicPlayer = (): void => {
+    setMusicPlayerVisible(false);
+    webViewRef.current?.resumeMedia();
+    resetTimer();
+  };
+
   const handleSelectQuickSetting = (setting: KioskQuickSetting): void => {
     setQuickSettingsDialogVisible(false);
     if (setting === 'wifi') setWifiDialogVisible(true);
@@ -3465,7 +3488,15 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         visible={quickSettingsDialogVisible}
         onClose={handleCloseQuickSettings}
         onSelect={handleSelectQuickSetting}
+        onMusic={handleOpenMusicPlayer}
+        onRelicCommanderHome={handleRelicCommanderHome}
       />
+      {displayMode === 'webview' && musicPlayerInitialized && (
+        <RelicCommanderMusicPlayer
+          visible={musicPlayerVisible}
+          onClose={handleCloseMusicPlayer}
+        />
+      )}
       <WifiDialog
         visible={wifiDialogVisible}
         onClose={() => handleCloseDeviceDialog(setWifiDialogVisible)}

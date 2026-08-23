@@ -21,6 +21,8 @@ interface Props {
   visible: boolean;
   onClose: () => void;
   onSelect: (setting: KioskQuickSetting) => void;
+  onMusic: () => void;
+  onRelicCommanderHome: () => void;
 }
 
 interface QuickStatus {
@@ -55,6 +57,8 @@ export default function KioskQuickSettingsDialog({
   visible,
   onClose,
   onSelect,
+  onMusic,
+  onRelicCommanderHome,
 }: Props) {
   const [status, setStatus] = useState<QuickStatus>(EMPTY_STATUS);
   const { width, height } = useWindowDimensions();
@@ -226,6 +230,40 @@ export default function KioskQuickSettingsDialog({
                   </TouchableOpacity>
                 ))}
               </View>
+
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Open music player"
+                  activeOpacity={0.75}
+                  style={styles.actionButton}
+                  onPress={onMusic}
+                >
+                  <MaterialCommunityIcons
+                    name="music-note"
+                    size={24}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                  <Text style={styles.actionButtonLabel}>Music</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Return to Relic Commander home"
+                  activeOpacity={0.75}
+                  style={styles.actionButton}
+                  onPress={onRelicCommanderHome}
+                >
+                  <MaterialCommunityIcons
+                    name="home-variant-outline"
+                    size={24}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                  <Text style={styles.actionButtonLabel} numberOfLines={2}>
+                    Relic Commander Home
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </TouchableOpacity>
@@ -374,6 +412,30 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     marginTop: 8,
+    color: RC_THEME.colors.textSection,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  actionRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.surfaceCardDeep,
+  },
+  actionButtonLabel: {
     color: RC_THEME.colors.textSection,
     fontSize: 13,
     fontWeight: '700',

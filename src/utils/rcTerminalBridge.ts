@@ -1,4 +1,6 @@
 export const RC_TERMINAL_ORIGIN = 'https://reliccommander.com';
+export const RC_TERMINAL_HOME = `${RC_TERMINAL_ORIGIN}/`;
+export const RC_TERMINAL_MUSIC_PLAYER = `${RC_TERMINAL_ORIGIN}/music_player?direct=1`;
 
 export const RC_TERMINAL_CAPABILITIES_REQUEST =
   'RC_TERMINAL_CAPABILITIES_REQUEST';
@@ -59,6 +61,51 @@ export const isRelicCommanderUrl = (value: unknown): boolean => {
     return false;
   }
 };
+
+const isInternalWebViewDocument = (value: unknown): boolean =>
+  typeof value === 'string' &&
+  /^(?:about:blank|about:srcdoc)(?:[?#]|$)/i.test(value);
+
+export const isRelicCommanderMusicPlayerUrl = (value: unknown): boolean => {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  try {
+    const normalizedUrl = new URL(value).href;
+    const playerUrl = `${RC_TERMINAL_ORIGIN}/music_player`;
+    return (
+      normalizedUrl === playerUrl ||
+      normalizedUrl.startsWith(`${playerUrl}#`) ||
+      normalizedUrl === `${playerUrl}?direct` ||
+      normalizedUrl.startsWith(`${playerUrl}?direct#`) ||
+      normalizedUrl === `${playerUrl}?direct=1` ||
+      normalizedUrl.startsWith(`${playerUrl}?direct=1#`)
+    );
+  } catch {
+    return false;
+  }
+};
+
+export const isRcMusicPlayerNavigationAllowed = (
+  targetUrl: unknown,
+  isTopFrame: boolean | undefined,
+): boolean =>
+  isInternalWebViewDocument(targetUrl) ||
+  (isTopFrame === false &&
+    typeof targetUrl === 'string' &&
+    /^https:\/\//i.test(targetUrl)) ||
+  isRelicCommanderMusicPlayerUrl(targetUrl);
+
+export const shouldReturnToRcHome = (
+  kioskUrl: unknown,
+  targetUrl: unknown,
+  isTopFrame: boolean | undefined,
+): boolean =>
+  isTopFrame !== false &&
+  isRelicCommanderUrl(kioskUrl) &&
+  !isRelicCommanderUrl(targetUrl) &&
+  !isInternalWebViewDocument(targetUrl);
 
 export const isRcTerminalCapabilitiesRequest = (value: unknown): boolean => {
   if (typeof value !== 'string') {

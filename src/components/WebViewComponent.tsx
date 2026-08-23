@@ -32,6 +32,8 @@ import {
   buildRcTerminalCapabilitiesResponseScript,
   isRcTerminalCapabilitiesRequest,
   isRelicCommanderUrl,
+  RC_TERMINAL_HOME,
+  shouldReturnToRcHome,
 } from '../utils/rcTerminalBridge';
 
 const { HttpServerModule, UpdateModule } = NativeModules;
@@ -75,6 +77,7 @@ export interface WebViewComponentRef {
   goBack: () => void;
   goForward: () => void;
   reload: () => void;
+  navigateToRelicCommanderHome: () => void;
   scrollToTop: () => void;
   clearCache: () => void;
   pauseMedia: () => void;
@@ -230,6 +233,18 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
       [urlFilterShowFeedback],
     );
 
+    const returnToRelicCommanderHome = useCallback((): void => {
+      setError(false);
+      setLoading(true);
+      setPageLoaded(false);
+      lastTopFrameUrlRef.current = RC_TERMINAL_HOME;
+      isGoingBackRef.current = false;
+      webViewRef.current?.stopLoading();
+      webViewRef.current?.injectJavaScript(
+        `window.location.replace(${JSON.stringify(RC_TERMINAL_HOME)}); true;`,
+      );
+    }, []);
+
     // Expose goBack, scrollToTop, and clearCache methods to parent via ref
     useImperativeHandle(ref, () => ({
       goBack: () => {
@@ -247,6 +262,7 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           webViewRef.current.reload();
         }
       },
+      navigateToRelicCommanderHome: returnToRelicCommanderHome,
       scrollToTop: () => {
         if (webViewRef.current) {
           webViewRef.current.injectJavaScript(
@@ -915,17 +931,10 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           // Cloudflare Turnstile. Only override Android WebView's native UA when
           // the administrator explicitly configured one.
           userAgent={customUserAgent?.trim() || undefined}
-          originWhitelist={
-            pdfViewerEnabled
-              ? [
-                  'http://*',
-                  'https://*',
-                  'about:blank',
-                  'about:srcdoc',
-                  'file://*',
-                ]
-              : ['http://*', 'https://*', 'about:blank', 'about:srcdoc']
-          }
+          // Keep every scheme inside the WebView decision path. Otherwise the
+          // library delegates non-whitelisted schemes to Android Linking, which
+          // could open another application outside the kiosk.
+          originWhitelist={['*']}
           mixedContentMode="always"
           onHttpError={handleHttpError}
           basicAuthCredential={basicAuthCredential}
@@ -1003,6 +1012,18 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
               )
             ) {
               return true;
+            }
+
+            // Relic Commander terminal confinement: external resources and
+            // Turnstile subframes remain unaffected, but the main document can
+            // never become an off-domain browsing surface.
+            if (shouldReturnToRcHome(url, request.url, request.isTopFrame)) {
+              console.warn(
+                '[RC Terminal] Blocked off-domain top-frame navigation:',
+                request.url,
+              );
+              returnToRelicCommanderHome();
+              return false;
             }
 
             // Allow file:// only for our bundled PDF viewer
@@ -1122,6 +1143,14 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
                 title: navState.title || '',
               });
             }
+
+            // Some SPA/router transitions do not pass through the native load
+            // request callback. Detect them here and replace their history entry
+            // with the safe terminal home instead of relying on Back navigation.
+            if (shouldReturnToRcHome(url, navState.url, true)) {
+              returnToRelicCommanderHome();
+              return;
+            }
             // Report URL changes for inactivity return feature
             if (onPageNavigated && navState.url) {
               onPageNavigated(navState.url);
@@ -1151,51 +1180,11 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
           thirdPartyCookiesEnabled={true}
           // Storage settings for Pinia/Nuxt compatibility
           cacheMode="LOAD_DEFAULT"
-          // Allow popups/new windows - required for some login flows
-          // Instead of opening a new window, we redirect in the same WebView
-          setSupportMultipleWindows={true}
-          onOpenWindow={syntheticEvent => {
-            const { nativeEvent } = syntheticEvent;
-            if (!nativeEvent.targetUrl) return;
-
-            // PDF Viewer: intercept PDF popups before URL filtering
-            // Some sites open PDFs via window.open() — handle them the same as link navigations
-            if (pdfViewerEnabled) {
-              const popupLower = nativeEvent.targetUrl.toLowerCase();
-              const popupPath = popupLower.split('?')[0].split('#')[0];
-              if (popupPath.endsWith('.pdf')) {
-                console.log(
-                  '[FreeKiosk] PDF popup detected, opening in viewer:',
-                  nativeEvent.targetUrl,
-                );
-                const viewerUrl = `file:///android_asset/pdfjs/viewer.html?file=${encodeURIComponent(
-                  nativeEvent.targetUrl,
-                )}`;
-                if (webViewRef.current) {
-                  webViewRef.current.injectJavaScript(
-                    `window.location.href = ${JSON.stringify(
-                      viewerUrl,
-                    )}; true;`,
-                  );
-                }
-                return;
-              }
-            }
-
-            // URL Filtering: block popups to filtered URLs
-            if (isUrlBlocked(nativeEvent.targetUrl)) {
-              showBlockedFeedback(nativeEvent.targetUrl);
-              return;
-            }
-            // Load the URL in the same WebView instead of opening a popup
-            if (webViewRef.current) {
-              webViewRef.current.injectJavaScript(
-                `window.location.href = ${JSON.stringify(
-                  nativeEvent.targetUrl,
-                )};`,
-              );
-            }
-          }}
+          // Keep a single native WebView. Android otherwise allocates a secondary
+          // WebView for target="_blank"/window.open(), even when no tab is shown.
+          // With multiple windows disabled, those links stay in this WebView and
+          // pass through the same RC origin lock and URL filtering as normal links.
+          setSupportMultipleWindows={false}
           // Security: File access disabled by default.
           // When PDF viewer is enabled, allow file access for loading bundled PDF.js from assets
           // and allow universal access so PDF.js can fetch remote PDF files.

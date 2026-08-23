@@ -2,8 +2,11 @@ import {
   buildRcTerminalCapabilities,
   buildRcTerminalCapabilitiesResponseScript,
   isRcTerminalCapabilitiesRequest,
+  isRcMusicPlayerNavigationAllowed,
+  isRelicCommanderMusicPlayerUrl,
   isRelicCommanderUrl,
   normalizeRcAppVersion,
+  shouldReturnToRcHome,
 } from '../src/utils/rcTerminalBridge';
 
 describe('Relic Commander terminal capabilities bridge', () => {
@@ -59,6 +62,93 @@ describe('Relic Commander terminal capabilities bridge', () => {
       ),
     ).toBe(false);
     expect(isRcTerminalCapabilitiesRequest('{invalid')).toBe(false);
+  });
+
+  it('confines only the main Relic Commander document to its origin', () => {
+    expect(
+      shouldReturnToRcHome(
+        'https://reliccommander.com/game',
+        'https://studio.example.com',
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      shouldReturnToRcHome(
+        'https://reliccommander.com/game',
+        'https://studio.example.com',
+        undefined,
+      ),
+    ).toBe(true);
+    expect(
+      shouldReturnToRcHome(
+        'https://reliccommander.com/game',
+        'https://reliccommander.com/profile',
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      shouldReturnToRcHome(
+        'https://reliccommander.com/game',
+        'https://challenges.cloudflare.com/turnstile/v0/',
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      shouldReturnToRcHome(
+        'https://reliccommander.com/game',
+        'about:blank',
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      shouldReturnToRcHome(
+        'https://another-kiosk.example.com',
+        'https://studio.example.com',
+        true,
+      ),
+    ).toBe(false);
+  });
+
+  it('locks the persistent music WebView to the documented player modes', () => {
+    expect(
+      isRelicCommanderMusicPlayerUrl(
+        'https://reliccommander.com/music_player?direct=1',
+      ),
+    ).toBe(true);
+    expect(
+      isRelicCommanderMusicPlayerUrl(
+        'https://reliccommander.com/music_player?direct',
+      ),
+    ).toBe(true);
+    expect(
+      isRelicCommanderMusicPlayerUrl('https://reliccommander.com/music_player'),
+    ).toBe(true);
+    expect(
+      isRelicCommanderMusicPlayerUrl(
+        'https://reliccommander.com/music_player?direct=2',
+      ),
+    ).toBe(false);
+    expect(
+      isRcMusicPlayerNavigationAllowed(
+        'https://w.soundcloud.com/player/',
+        false,
+      ),
+    ).toBe(true);
+    expect(
+      isRcMusicPlayerNavigationAllowed(
+        'https://w.soundcloud.com/player/',
+        true,
+      ),
+    ).toBe(false);
+    expect(
+      isRcMusicPlayerNavigationAllowed(
+        'http://w.soundcloud.com/player/',
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      isRcMusicPlayerNavigationAllowed('intent://external-app', true),
+    ).toBe(false);
   });
 
   it('guarantees a contract-safe application version', () => {
