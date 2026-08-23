@@ -129,6 +129,9 @@ describe('RC Terminal tablet layout', () => {
     const nativeUpdater = readProjectFile(
       'android/app/src/main/java/com/freekiosk/UpdateModule.kt',
     );
+    const nativeSystemInfo = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/SystemInfoModule.kt',
+    );
     const webView = readProjectFile('src/components/WebViewComponent.tsx');
     const wifi = readProjectFile('src/components/WifiDialog.tsx');
     const bluetooth = readProjectFile('src/components/BluetoothDialog.tsx');
@@ -147,6 +150,11 @@ describe('RC Terminal tablet layout', () => {
     expect(quickSettings).toContain('KioskModule.isDeviceOwner()');
     expect(quickSettings).toContain('isTrustedRcUpdateUrl');
     expect(quickSettings).toContain('downloadAndInstallSilently');
+    expect(quickSettings).toContain("'wifi-strength-4'");
+    expect(quickSettings).toContain('minHeight: 76');
+    expect(nativeSystemInfo).toContain('transportWifiInfo');
+    expect(nativeSystemInfo).toContain('connectionWifiInfo');
+    expect(nativeSystemInfo).toContain('hasUsableSsid');
     expect(quickSettings).not.toContain('openInstallPermissionSettings');
     expect(nativeUpdater).toContain('fun downloadAndInstallSilently');
     expect(nativeUpdater).toContain('hasSafeBatteryForPublicUpdate');
@@ -225,7 +233,10 @@ describe('RC Terminal tablet layout', () => {
     expect(kiosk).toContain('!hideMusicIcon &&');
     expect(kiosk).toContain('musicPlaybackState.available &&');
     expect(kiosk).toContain('musicPlaybackState.ready &&');
-    expect(kiosk).toContain('musicButtonRight = settingsButtonRight + 46');
+    expect(kiosk).toContain('musicButtonRight = settingsButtonRight + 68');
+    expect(kiosk).toContain(
+      'hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}',
+    );
   });
 });
 
@@ -261,5 +272,23 @@ describe('RC Terminal quick login hardening', () => {
     expect(webView).toContain('collapsable={false}');
     expect(webView).toContain('postRcTerminalSession');
     expect(webView).not.toMatch(/injectJavaScript\([^)]*ticket/s);
+  });
+});
+
+describe('Kiosk wake-up hardening', () => {
+  it('restores immersive mode directly after every screen-on event', () => {
+    const activity = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/MainActivity.kt',
+    );
+    const screenReceiver = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/ScreenStateReceiver.kt',
+    );
+
+    expect(screenReceiver).toContain('onScreenOn?.invoke()');
+    expect(activity).toContain('restoreImmersiveModeAfterScreenOn()');
+    expect(activity).toContain('longArrayOf(0L, 300L, 1000L)');
+    expect(activity).toContain('ScreenStateReceiver {');
+    expect(activity).toContain('hide(WindowInsets.Type.navigationBars())');
+    expect(activity).toContain('View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY');
   });
 });

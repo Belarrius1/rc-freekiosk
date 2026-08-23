@@ -122,13 +122,27 @@ class SystemInfoModule(reactContext: ReactApplicationContext) : ReactContextBase
             wifiInfo.putBoolean("isConnected", isConnected)
 
             if (isConnected) {
-                // API 31+: use transportInfo from NetworkCapabilities — connectionInfo returns <unknown ssid> on Android 12+
-                val wifiInfoObj: WifiInfo? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && capabilities != null) {
+                val wifiManager = reactApplicationContext.applicationContext
+                    .getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+                // Prefer NetworkCapabilities on Android 12+, but some OEM builds redact
+                // its SSID even when the kiosk owns the required permissions. Fall back
+                // to connectionInfo, which is also used by the in-app Wi-Fi dialog.
+                val transportWifiInfo: WifiInfo? = if (
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && capabilities != null
+                ) {
                     capabilities.transportInfo as? WifiInfo
                 } else {
-                    val wifiManager = reactApplicationContext.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-                    @Suppress("DEPRECATION")
-                    wifiManager.connectionInfo
+                    null
+                }
+                @Suppress("DEPRECATION")
+                val connectionWifiInfo = wifiManager.connectionInfo
+                val wifiInfoObj = if (hasUsableSsid(transportWifiInfo?.ssid)) {
+                    transportWifiInfo
+                } else if (hasUsableSsid(connectionWifiInfo.ssid)) {
+                    connectionWifiInfo
+                } else {
+                    transportWifiInfo ?: connectionWifiInfo
                 }
 
                 val ssid = getSsidSafe(wifiInfoObj?.ssid)
@@ -158,7 +172,7 @@ class SystemInfoModule(reactContext: ReactApplicationContext) : ReactContextBase
      */
     private fun getSsidSafe(rawSsid: String?): String {
         val ssid = rawSsid?.replace("\"", "")?.trim() ?: ""
-        if (ssid.isNotEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
+        if (hasUsableSsid(ssid)) {
             return ssid
         }
         // SSID unavailable — check why
@@ -178,6 +192,11 @@ class SystemInfoModule(reactContext: ReactApplicationContext) : ReactContextBase
             !locationEnabled -> "WiFi (location off)"
             else -> "WiFi"
         }
+    }
+
+    private fun hasUsableSsid(rawSsid: String?): Boolean {
+        val ssid = rawSsid?.replace("\"", "")?.trim() ?: ""
+        return ssid.isNotEmpty() && ssid != "<unknown ssid>" && ssid != "0x"
     }
 
     private fun getBluetoothInfo(): WritableMap {

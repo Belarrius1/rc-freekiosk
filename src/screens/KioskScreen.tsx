@@ -3421,7 +3421,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     Math.max(safeAreaInsets.top, 8);
   // Keep the public cog clear of close buttons used by top-right web modals.
   const settingsButtonRight = Math.max(safeAreaInsets.right, 8) + 100;
-  const musicButtonRight = settingsButtonRight + 46;
+  const musicButtonRight = settingsButtonRight + 68;
 
   return (
     <View style={styles.container}>
@@ -3568,7 +3568,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
                     musicPlaybackState.playing ? 'Pause music' : 'Play music'
                   }
                   activeOpacity={0.9}
-                  hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+                  hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
                   style={[
                     styles.kioskSettingsButton,
                     styles.kioskMusicButton,
@@ -3593,7 +3593,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
               accessibilityRole="button"
               accessibilityLabel="Open menu"
               activeOpacity={0.9}
-              hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+              hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
               style={[
                 styles.kioskSettingsButton,
                 { top: settingsButtonTop, right: settingsButtonRight },
@@ -3803,9 +3803,9 @@ const styles = StyleSheet.create({
   },
   kioskSettingsButton: {
     position: 'absolute',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.48)',

@@ -814,6 +814,26 @@ class MainActivity : ReactActivity() {
     }
   }
 
+  /**
+   * Some Android/OEM builds restore the navigation bar after SCREEN_ON without
+   * delivering a useful window-focus transition. Re-apply immersive mode across
+   * the short wake-up window so a late system-bar restoration cannot remain stuck.
+   */
+  private fun restoreImmersiveModeAfterScreenOn() {
+    runOnUiThread {
+      if (PrintModule.isPrintActive || isFinishing) return@runOnUiThread
+
+      hideSystemUIHandler.removeCallbacksAndMessages(null)
+      longArrayOf(0L, 300L, 1000L).forEach { delayMs ->
+        hideSystemUIHandler.postDelayed({
+          if (!PrintModule.isPrintActive && !isFinishing) {
+            hideSystemUI()
+          }
+        }, delayMs)
+      }
+    }
+  }
+
   // Volume Up 5-tap tracking
   private var volumeUpTapCount = 0
   private var volumeUpLastTapTime = 0L
@@ -1940,7 +1960,9 @@ class MainActivity : ReactActivity() {
         return
       }
       
-      screenStateReceiver = ScreenStateReceiver()
+      screenStateReceiver = ScreenStateReceiver {
+        restoreImmersiveModeAfterScreenOn()
+      }
       
       val filter = IntentFilter()
       filter.addAction(Intent.ACTION_SCREEN_ON)

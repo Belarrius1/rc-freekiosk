@@ -19,7 +19,9 @@ import android.view.WindowManager
  * When "Auto Wake on Screen Off" is enabled in SharedPreferences, this receiver
  * will immediately re-wake the screen after detecting ACTION_SCREEN_OFF.
  */
-class ScreenStateReceiver : BroadcastReceiver() {
+class ScreenStateReceiver(
+    private val onScreenOn: (() -> Unit)? = null,
+) : BroadcastReceiver() {
 
     companion object {
         private const val TAG = "ScreenStateReceiver"
@@ -34,6 +36,11 @@ class ScreenStateReceiver : BroadcastReceiver() {
             Intent.ACTION_SCREEN_ON -> {
                 Log.d(TAG, "Screen turned ON")
                 isScreenOn = true
+                try {
+                    onScreenOn?.invoke()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Could not restore immersive mode after screen-on: ${e.message}")
+                }
             }
             Intent.ACTION_SCREEN_OFF -> {
                 Log.d(TAG, "Screen turned OFF")

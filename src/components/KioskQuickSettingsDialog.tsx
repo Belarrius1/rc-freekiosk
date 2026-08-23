@@ -53,6 +53,7 @@ interface QuickStatus {
   isCharging: boolean;
   wifiConnected: boolean;
   wifiSsid: string;
+  wifiSignalLevel: number | null;
   brightness: number | null;
 }
 
@@ -61,6 +62,7 @@ const EMPTY_STATUS: QuickStatus = {
   isCharging: false,
   wifiConnected: false,
   wifiSsid: '',
+  wifiSignalLevel: null,
   brightness: null,
 };
 
@@ -165,6 +167,12 @@ export default function KioskQuickSettingsDialog({
             isCharging: Boolean(info.battery?.isCharging),
             wifiConnected: Boolean(info.wifi?.isConnected),
             wifiSsid: info.wifi?.ssid || '',
+            wifiSignalLevel:
+              typeof info.wifi?.signalLevel === 'number' &&
+              info.wifi.signalLevel >= 0 &&
+              info.wifi.signalLevel <= 4
+                ? Math.round(info.wifi.signalLevel)
+                : null,
           }));
         }
       } catch (error) {
@@ -199,6 +207,17 @@ export default function KioskQuickSettingsDialog({
   const wifiLabel = status.wifiConnected
     ? status.wifiSsid || 'Connected'
     : 'Offline';
+  const wifiIcon = !status.wifiConnected
+    ? 'wifi-strength-off-outline'
+    : status.wifiSignalLevel === null
+    ? 'wifi'
+    : [
+        'wifi-strength-outline',
+        'wifi-strength-1',
+        'wifi-strength-2',
+        'wifi-strength-3',
+        'wifi-strength-4',
+      ][status.wifiSignalLevel];
   const displayedVersion = versionLabel(currentVersionName);
   const updateBusy =
     updateStatus === 'checking' || updateStatus === 'installing';
@@ -372,9 +391,9 @@ export default function KioskQuickSettingsDialog({
                   <Text style={styles.statusValue}>{batteryLabel}</Text>
                 </View>
                 <View style={styles.statusItem}>
-                  <MaterialCommunityIcons
-                    name={status.wifiConnected ? 'wifi' : 'wifi-off'}
-                    size={20}
+                      <MaterialCommunityIcons
+                        name={wifiIcon}
+                        size={20}
                     color={
                       status.wifiConnected
                         ? RC_THEME.colors.success
@@ -714,11 +733,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: 12,
+    rowGap: 10,
   },
   settingButton: {
     width: '48%',
-    minHeight: 92,
+    minHeight: 76,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -728,7 +747,7 @@ const styles = StyleSheet.create({
     ...RC_THEME.shadow.glow,
   },
   settingLabel: {
-    marginTop: 8,
+    marginTop: 6,
     color: RC_THEME.colors.textSection,
     fontSize: 13,
     fontWeight: '700',
