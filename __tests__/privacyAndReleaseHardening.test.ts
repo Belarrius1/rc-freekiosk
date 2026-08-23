@@ -168,6 +168,7 @@ describe('RC Terminal tablet layout', () => {
     const player = readProjectFile(
       'src/components/RelicCommanderMusicPlayer.tsx',
     );
+    const playerApi = readProjectFile('src/utils/rcMusicPlayerApi.ts');
     const kiosk = readProjectFile('src/screens/KioskScreen.tsx');
 
     expect(player).toContain('RC_TERMINAL_MUSIC_PLAYER');
@@ -176,9 +177,33 @@ describe('RC Terminal tablet layout', () => {
     expect(player).toContain('thirdPartyCookiesEnabled');
     expect(player).toContain("originWhitelist={['*']}");
     expect(player).toContain('onNavigationStateChange=');
+    expect(player).toContain('webViewGeneration');
+    expect(player).toContain('isRcMusicPlayerNavigationAllowed');
+    expect(player).toContain('window.RCMusicPlayer');
+    expect(player).toContain('rc-music-player-api-ready');
+    expect(playerApi).toContain('RC_MUSIC_PLAYER_STATE');
+    expect(playerApi).toContain(
+      'payload.protocol !== RC_MUSIC_PLAYER_PROTOCOL',
+    );
+    expect(player).toContain('parseRcMusicPlayerStateMessage');
+    expect(player).toContain("runPlayerCommand('toggle')");
+    expect(player).toContain("runPlayerCommand('next')");
+    expect(player).toContain("runPlayerCommand('previous')");
+    expect(player).toContain('seekTo(');
+    expect(player).toContain('__rcKioskToggleMusicMuted');
     expect(kiosk).toContain('musicPlayerInitialized &&');
     expect(kiosk).toContain('setMusicPlayerInitialized(true)');
     expect(kiosk).toContain('handleOpenMusicPlayer');
     expect(kiosk).toContain('handleCloseMusicPlayer');
+    expect(kiosk).toContain('kiosk-music-toggle-button');
+    expect(kiosk).toContain('handleToggleMusicPlayback');
+    expect(kiosk).toContain('musicPlayerRef.current?.toggle()');
+    expect(player).toContain('Hide the music icon');
+    expect(player).toContain('onHideMusicIconChange');
+    expect(kiosk).toContain('StorageService.saveHideMusicIcon(hidden)');
+    expect(kiosk).toContain('!hideMusicIcon &&');
+    expect(kiosk).toContain('musicPlaybackState.available &&');
+    expect(kiosk).toContain('musicPlaybackState.ready &&');
+    expect(kiosk).toContain('musicButtonRight = settingsButtonRight + 46');
   });
 });

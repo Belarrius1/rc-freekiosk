@@ -62,8 +62,13 @@ import KioskQuickSettingsDialog, {
   KioskQuickSetting,
 } from '../components/KioskQuickSettingsDialog';
 import RelicCommanderMusicPlayer from '../components/RelicCommanderMusicPlayer';
+import type {
+  MusicPlaybackState,
+  RelicCommanderMusicPlayerRef,
+} from '../components/RelicCommanderMusicPlayer';
 import { FORK_DEFAULTS } from '../config/forkDefaults';
 import { FORK_CAPABILITIES } from '../config/forkCapabilities';
+import { RC_THEME } from '../theme/relicCommanderTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { HttpServerModule } = NativeModules;
@@ -98,6 +103,15 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const [musicPlayerInitialized, setMusicPlayerInitialized] =
     useState<boolean>(false);
   const [musicPlayerVisible, setMusicPlayerVisible] = useState<boolean>(false);
+  const [hideMusicIcon, setHideMusicIcon] = useState<boolean>(
+    FORK_DEFAULTS.hideMusicIcon,
+  );
+  const [musicPlaybackState, setMusicPlaybackState] =
+    useState<MusicPlaybackState>({
+      available: false,
+      ready: false,
+      playing: false,
+    });
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   const [pauseWebMediaWhenHidden, setPauseWebMediaWhenHidden] =
     useState<boolean>(true);
@@ -283,6 +297,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
   // WebView Back Button states
   const webViewRef = useRef<WebViewComponentRef>(null);
+  const musicPlayerRef = useRef<RelicCommanderMusicPlayerRef>(null);
   const [webViewBackButtonEnabled, setWebViewBackButtonEnabled] =
     useState<boolean>(false);
   const [webViewBackButtonXPercent, setWebViewBackButtonXPercent] =
@@ -1823,6 +1838,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         K.PAUSE_WEB_MEDIA_WHEN_HIDDEN,
         true,
       );
+      const savedHideMusicIcon = bool(
+        K.RC_MUSIC_ICON_HIDDEN,
+        FORK_DEFAULTS.hideMusicIcon,
+      );
       const savedKioskEnabled = bool(K.KIOSK_ENABLED, false);
       const savedScreensaverEnabled = bool(K.SCREENSAVER_ENABLED, false);
       const savedDefaultBrightness = num(K.DEFAULT_BRIGHTNESS, 0.5);
@@ -1867,6 +1886,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       if (savedUrl) setUrl(savedUrl);
       setAutoReload(savedAutoReload);
       setPauseWebMediaWhenHidden(savedPauseWebMediaWhenHidden);
+      setHideMusicIcon(savedHideMusicIcon);
       // #205 — re-apply the opt-in 2-way audio (intercom) mode on each kiosk launch: the
       // native AudioRecordingCallback registration doesn't survive an app restart. No-op when off.
       try {
@@ -3314,6 +3334,17 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     resetTimer();
   };
 
+  const handleToggleMusicPlayback = (): void => {
+    musicPlayerRef.current?.toggle();
+    resetTimer();
+  };
+
+  const handleHideMusicIconChange = (hidden: boolean): void => {
+    setHideMusicIcon(hidden);
+    void StorageService.saveHideMusicIcon(hidden);
+    resetTimer();
+  };
+
   const handleSelectQuickSetting = (setting: KioskQuickSetting): void => {
     setQuickSettingsDialogVisible(false);
     if (setting === 'wifi') setWifiDialogVisible(true);
@@ -3333,7 +3364,9 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     (statusBarEnabled ? 28 : 0) +
     (dashboardModeEnabled ? 28 : 0) +
     Math.max(safeAreaInsets.top, 8);
-  const settingsButtonRight = Math.max(safeAreaInsets.right, 8);
+  // Keep the public cog clear of close buttons used by top-right web modals.
+  const settingsButtonRight = Math.max(safeAreaInsets.right, 8) + 100;
+  const musicButtonRight = settingsButtonRight + 46;
 
   return (
     <View style={styles.container}>
@@ -3468,20 +3501,52 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       {displayMode === 'webview' &&
         !isScreensaverActive &&
         !isScheduledSleep && (
-          <TouchableOpacity
-            testID="kiosk-settings-button"
-            accessibilityRole="button"
-            accessibilityLabel="Open quick settings"
-            activeOpacity={0.9}
-            hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
-            style={[
-              styles.kioskSettingsButton,
-              { top: settingsButtonTop, right: settingsButtonRight },
-            ]}
-            onPress={handleOpenQuickSettings}
-          >
-            <MaterialCommunityIcons name="cog" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          <>
+            {!hideMusicIcon &&
+              musicPlaybackState.available &&
+              musicPlaybackState.ready && (
+                <TouchableOpacity
+                  testID="kiosk-music-toggle-button"
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    musicPlaybackState.playing ? 'Pause music' : 'Play music'
+                  }
+                  activeOpacity={0.9}
+                  hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+                  style={[
+                    styles.kioskSettingsButton,
+                    styles.kioskMusicButton,
+                    { top: settingsButtonTop, right: musicButtonRight },
+                  ]}
+                  onPress={handleToggleMusicPlayback}
+                >
+                  <MaterialCommunityIcons
+                    name={musicPlaybackState.playing ? 'pause' : 'play'}
+                    size={20}
+                    color={
+                      musicPlaybackState.playing
+                        ? RC_THEME.colors.accentBright
+                        : RC_THEME.colors.textSecondary
+                    }
+                  />
+                </TouchableOpacity>
+              )}
+
+            <TouchableOpacity
+              testID="kiosk-settings-button"
+              accessibilityRole="button"
+              accessibilityLabel="Open quick settings"
+              activeOpacity={0.9}
+              hitSlop={{ top: 6, right: 6, bottom: 6, left: 6 }}
+              style={[
+                styles.kioskSettingsButton,
+                { top: settingsButtonTop, right: settingsButtonRight },
+              ]}
+              onPress={handleOpenQuickSettings}
+            >
+              <MaterialCommunityIcons name="cog" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </>
         )}
 
       <KioskQuickSettingsDialog
@@ -3493,8 +3558,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       />
       {displayMode === 'webview' && musicPlayerInitialized && (
         <RelicCommanderMusicPlayer
+          ref={musicPlayerRef}
           visible={musicPlayerVisible}
+          hideMusicIcon={hideMusicIcon}
           onClose={handleCloseMusicPlayer}
+          onHideMusicIconChange={handleHideMusicIconChange}
+          onPlaybackStateChange={setMusicPlaybackState}
         />
       )}
       <WifiDialog
@@ -3683,6 +3752,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 2,
     zIndex: 1100,
+  },
+  kioskMusicButton: {
+    borderColor: RC_THEME.colors.primary,
+    backgroundColor: RC_THEME.colors.surfaceCardDeep,
   },
   webBackButton: {
     position: 'absolute',

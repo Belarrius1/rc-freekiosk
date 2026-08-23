@@ -87,14 +87,35 @@ export const isRelicCommanderMusicPlayerUrl = (value: unknown): boolean => {
   }
 };
 
+export const isSoundCloudPlayerWidgetUrl = (value: unknown): boolean => {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  try {
+    const normalizedUrl = new URL(value).href;
+    const widgetUrl = 'https://w.soundcloud.com/player';
+    return (
+      normalizedUrl === widgetUrl ||
+      normalizedUrl.startsWith(`${widgetUrl}/`) ||
+      normalizedUrl.startsWith(`${widgetUrl}?`)
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const isRcMusicPlayerNavigationAllowed = (
   targetUrl: unknown,
   isTopFrame: boolean | undefined,
 ): boolean =>
   isInternalWebViewDocument(targetUrl) ||
   (isTopFrame === false &&
-    typeof targetUrl === 'string' &&
-    /^https:\/\//i.test(targetUrl)) ||
+    (isSoundCloudPlayerWidgetUrl(targetUrl) ||
+      (typeof targetUrl === 'string' &&
+        /^https:\/\/challenges\.cloudflare\.com(?:[/:?#]|$)/i.test(
+          targetUrl,
+        )))) ||
   isRelicCommanderMusicPlayerUrl(targetUrl);
 
 export const shouldReturnToRcHome = (

@@ -19,6 +19,7 @@ describe('Free Kiosk fork defaults', () => {
       blockFactoryReset: true,
       defaultLauncher: true,
       restApiAllowControl: false,
+      hideMusicIcon: false,
     });
   });
 
@@ -29,6 +30,7 @@ describe('Free Kiosk fork defaults', () => {
     await expect(StorageService.getBlockFactoryReset()).resolves.toBe(true);
     await expect(StorageService.getDefaultLauncher()).resolves.toBe(true);
     await expect(StorageService.getRestApiAllowControl()).resolves.toBe(false);
+    await expect(StorageService.getHideMusicIcon()).resolves.toBe(false);
   });
 
   it('preserves explicit administrator preferences', async () => {
@@ -38,6 +40,7 @@ describe('Free Kiosk fork defaults', () => {
     await StorageService.saveBlockFactoryReset(false);
     await StorageService.saveDefaultLauncher(false);
     await StorageService.saveRestApiAllowControl(true);
+    await StorageService.saveHideMusicIcon(true);
 
     await expect(StorageService.getAutoReload()).resolves.toBe(false);
     await expect(StorageService.getKeepScreenOn()).resolves.toBe(true);
@@ -45,5 +48,6 @@ describe('Free Kiosk fork defaults', () => {
     await expect(StorageService.getBlockFactoryReset()).resolves.toBe(false);
     await expect(StorageService.getDefaultLauncher()).resolves.toBe(false);
     await expect(StorageService.getRestApiAllowControl()).resolves.toBe(true);
+    await expect(StorageService.getHideMusicIcon()).resolves.toBe(true);
   });
 });

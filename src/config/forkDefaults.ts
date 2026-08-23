@@ -6,4 +6,5 @@ export const FORK_DEFAULTS = {
   blockFactoryReset: true,
   defaultLauncher: true,
   restApiAllowControl: false,
+  hideMusicIcon: false,
 } as const;

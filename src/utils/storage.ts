@@ -128,6 +128,8 @@ const KEYS = {
   CUSTOM_USER_AGENT: '@kiosk_custom_user_agent',
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   PAUSE_WEB_MEDIA_WHEN_HIDDEN: '@kiosk_pause_web_media_when_hidden',
+  // Relic Commander persistent music shortcut
+  RC_MUSIC_ICON_HIDDEN: '@rc_music_icon_hidden',
   // MQTT (Home Assistant integration)
   MQTT_ENABLED: '@kiosk_mqtt_enabled',
   MQTT_BROKER_URL: '@kiosk_mqtt_broker_url',
@@ -232,6 +234,29 @@ export const StorageService = {
     } catch (error) {
       console.error('Error getting auto reload:', error);
       return FORK_DEFAULTS.reloadOnError;
+    }
+  },
+
+  saveHideMusicIcon: async (value: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(
+        KEYS.RC_MUSIC_ICON_HIDDEN,
+        JSON.stringify(value),
+      );
+    } catch (error) {
+      console.error('Error saving music icon visibility:', error);
+    }
+  },
+
+  getHideMusicIcon: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(KEYS.RC_MUSIC_ICON_HIDDEN);
+      return value !== null
+        ? JSON.parse(value)
+        : FORK_DEFAULTS.hideMusicIcon;
+    } catch (error) {
+      console.error('Error getting music icon visibility:', error);
+      return FORK_DEFAULTS.hideMusicIcon;
     }
   },
 

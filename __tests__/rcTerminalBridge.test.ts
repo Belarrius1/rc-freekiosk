@@ -6,6 +6,7 @@ import {
   isRelicCommanderMusicPlayerUrl,
   isRelicCommanderUrl,
   normalizeRcAppVersion,
+  isSoundCloudPlayerWidgetUrl,
   shouldReturnToRcHome,
 } from '../src/utils/rcTerminalBridge';
 
@@ -134,6 +135,23 @@ describe('Relic Commander terminal capabilities bridge', () => {
         false,
       ),
     ).toBe(true);
+    expect(
+      isSoundCloudPlayerWidgetUrl(
+        'https://w.soundcloud.com/player/?url=https%3A%2F%2Fapi.soundcloud.com',
+      ),
+    ).toBe(true);
+    expect(
+      isRcMusicPlayerNavigationAllowed(
+        'https://soundcloud.com/artist/track',
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      isRcMusicPlayerNavigationAllowed(
+        'https://w.soundcloud.com/player.evil/path',
+        false,
+      ),
+    ).toBe(false);
     expect(
       isRcMusicPlayerNavigationAllowed(
         'https://w.soundcloud.com/player/',
