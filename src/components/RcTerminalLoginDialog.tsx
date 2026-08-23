@@ -262,7 +262,16 @@ export default function RcTerminalLoginDialog({
       const session = await authenticateRcTerminal(association, attemptPin);
       if (pairingGenerationRef.current !== generation) return;
       setPin('');
-      await onSessionTicket(session.ticket);
+      try {
+        await onSessionTicket(session.ticket);
+      } catch {
+        if (pairingGenerationRef.current !== generation) return;
+        setMessage(
+          'The secure session could not be opened. Enter your PIN to request a new session.',
+        );
+        setMode('pin');
+        return;
+      }
       if (pairingGenerationRef.current !== generation) return;
       setMessage('Access granted. Opening Relic Commander…');
       close();

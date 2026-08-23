@@ -13,7 +13,6 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.CookieManager
 import com.facebook.react.uimanager.UIManagerHelper
-import com.facebook.react.uimanager.common.UIManagerType
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -129,9 +128,9 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         UiThreadUtil.runOnUiThread {
             var body: ByteArray? = null
             try {
-                val uiManager = UIManagerHelper.getUIManager(
+                val uiManager = UIManagerHelper.getUIManagerForReactTag(
                     reactApplicationContext,
-                    UIManagerType.FABRIC,
+                    tag,
                 )
                 val webView = findWebView(uiManager?.resolveView(tag))
                     ?: throw IllegalStateException("Content WebView is unavailable")
@@ -154,9 +153,9 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     fun clearRelicCommanderSession(tag: Int, promise: Promise) {
         UiThreadUtil.runOnUiThread {
             try {
-                val uiManager = UIManagerHelper.getUIManager(
+                val uiManager = UIManagerHelper.getUIManagerForReactTag(
                     reactApplicationContext,
-                    UIManagerType.FABRIC,
+                    tag,
                 )
                 val webView = findWebView(uiManager?.resolveView(tag))
                     ?: throw IllegalStateException("Content WebView is unavailable")
@@ -178,7 +177,10 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private fun setWebViewPaused(tag: Int, paused: Boolean, promise: Promise) {
         UiThreadUtil.runOnUiThread {
             try {
-                val uiManager = UIManagerHelper.getUIManager(reactApplicationContext, UIManagerType.FABRIC)
+                val uiManager = UIManagerHelper.getUIManagerForReactTag(
+                    reactApplicationContext,
+                    tag,
+                )
                 val webView = findWebView(uiManager?.resolveView(tag))
                 if (webView == null) {
                     promise.resolve(false)

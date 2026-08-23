@@ -251,6 +251,10 @@ describe('RC Terminal quick login hardening', () => {
     expect(nativeKiosk).toContain(
       'webView.postUrl("https://reliccommander.com/terminal/session", postBody)',
     );
+    expect(
+      nativeKiosk.match(/getUIManagerForReactTag/g)?.length,
+    ).toBeGreaterThanOrEqual(3);
+    expect(nativeKiosk).not.toContain('UIManagerType.FABRIC');
     expect(nativeKiosk).toContain('body?.fill(0)');
     expect(webView).toContain('postRcTerminalSession');
     expect(webView).not.toMatch(/injectJavaScript\([^)]*ticket/s);
