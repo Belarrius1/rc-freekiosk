@@ -264,8 +264,9 @@ export default function RcTerminalLoginDialog({
       setPin('');
       try {
         await onSessionTicket(session.ticket);
-      } catch {
+      } catch (error) {
         if (pairingGenerationRef.current !== generation) return;
+        console.warn('[RC Terminal] Native session handoff failed:', error);
         setMessage(
           'The secure session could not be opened. Enter your PIN to request a new session.',
         );

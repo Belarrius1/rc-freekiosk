@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.CookieManager
 import com.facebook.react.uimanager.UIManagerHelper
+import com.facebook.react.uimanager.util.ReactFindViewUtil
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
@@ -32,6 +33,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private val emergencyDialAction = "android.intent.action.DIAL_EMERGENCY"
     private val emergencyDialerAction = "com.android.phone.EmergencyDialer.DIAL"
     private val safetyHubPackage = "com.google.android.apps.safetyhub"
+    private val relicCommanderWebViewNativeId = "rc-main-webview"
 
     companion object {
         // Store the current instance to allow sending events from MainActivity
@@ -128,11 +130,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
         UiThreadUtil.runOnUiThread {
             var body: ByteArray? = null
             try {
-                val uiManager = UIManagerHelper.getUIManagerForReactTag(
-                    reactApplicationContext,
-                    tag,
-                )
-                val webView = findWebView(uiManager?.resolveView(tag))
+                val webView = resolveRelicCommanderWebView(tag)
                     ?: throw IllegalStateException("Content WebView is unavailable")
                 val encodedTicket = URLEncoder.encode(ticket, StandardCharsets.UTF_8.name())
                 val postBody = "ticket=$encodedTicket".toByteArray(StandardCharsets.UTF_8)
@@ -140,6 +138,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 webView.postUrl("https://reliccommander.com/terminal/session", postBody)
                 promise.resolve(true)
             } catch (error: Exception) {
+                android.util.Log.e("KioskModule", "RC session handoff failed", error)
                 promise.reject("SESSION_POST_FAILED", "Unable to open the Terminal session", error)
             } finally {
                 body?.fill(0)
@@ -153,11 +152,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     fun clearRelicCommanderSession(tag: Int, promise: Promise) {
         UiThreadUtil.runOnUiThread {
             try {
-                val uiManager = UIManagerHelper.getUIManagerForReactTag(
-                    reactApplicationContext,
-                    tag,
-                )
-                val webView = findWebView(uiManager?.resolveView(tag))
+                val webView = resolveRelicCommanderWebView(tag)
                     ?: throw IllegalStateException("Content WebView is unavailable")
                 webView.stopLoading()
                 webView.clearHistory()
@@ -177,11 +172,7 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
     private fun setWebViewPaused(tag: Int, paused: Boolean, promise: Promise) {
         UiThreadUtil.runOnUiThread {
             try {
-                val uiManager = UIManagerHelper.getUIManagerForReactTag(
-                    reactApplicationContext,
-                    tag,
-                )
-                val webView = findWebView(uiManager?.resolveView(tag))
+                val webView = resolveRelicCommanderWebView(tag)
                 if (webView == null) {
                     promise.resolve(false)
                     return@runOnUiThread
@@ -192,6 +183,31 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
                 // Never crash: the view may have been unmounted (race) or resolveView may throw.
                 promise.resolve(false)
             }
+        }
+    }
+
+    /**
+     * Resolve the main content WebView by its stable nativeID. The React tag remains a
+     * compatibility fallback for builds where nativeID propagation is unavailable.
+     */
+    private fun resolveRelicCommanderWebView(tag: Int): WebView? {
+        val decorView = reactApplicationContext.currentActivity?.window?.decorView
+        if (decorView != null) {
+            val identifiedView = ReactFindViewUtil.findView(
+                decorView,
+                relicCommanderWebViewNativeId,
+            )
+            findWebView(identifiedView)?.let { return it }
+        }
+
+        return try {
+            val uiManager = UIManagerHelper.getUIManagerForReactTag(
+                reactApplicationContext,
+                tag,
+            )
+            findWebView(uiManager?.resolveView(tag))
+        } catch (_: Exception) {
+            null
         }
     }
 

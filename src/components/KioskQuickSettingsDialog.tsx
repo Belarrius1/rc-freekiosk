@@ -500,31 +500,30 @@ export default function KioskQuickSettingsDialog({
                     <View style={styles.updateTextGroup}>
                       <Text style={styles.updateTitle}>Terminal update</Text>
                       <Text style={styles.updateMessage}>{updateMessage}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.updateVersions}>
-                    <View style={styles.updateVersionItem}>
-                      <Text style={styles.updateVersionLabel}>Installed</Text>
-                      <Text style={styles.updateVersionValue}>
-                        {displayedVersion}
-                      </Text>
-                    </View>
-                    <MaterialCommunityIcons
-                      name="arrow-right"
-                      size={18}
-                      color={RC_THEME.colors.textMuted}
-                    />
-                    <View style={styles.updateVersionItem}>
-                      <Text style={styles.updateVersionLabel}>Available</Text>
-                      <Text
-                        style={[
-                          styles.updateVersionValue,
-                          updateCanInstall && styles.updateVersionAvailable,
-                        ]}
-                      >
-                        {availableVersionLabel}
-                      </Text>
+                      <View style={styles.updateVersionsInline}>
+                        <Text style={styles.updateVersionInlineText}>
+                          <Text style={styles.updateVersionLabel}>Installed </Text>
+                          <Text style={styles.updateVersionValue}>
+                            {displayedVersion}
+                          </Text>
+                        </Text>
+                        <MaterialCommunityIcons
+                          name="arrow-right"
+                          size={14}
+                          color={RC_THEME.colors.textMuted}
+                        />
+                        <Text style={styles.updateVersionInlineText}>
+                          <Text style={styles.updateVersionLabel}>Available </Text>
+                          <Text
+                            style={[
+                              styles.updateVersionValue,
+                              updateCanInstall && styles.updateVersionAvailable,
+                            ]}
+                          >
+                            {availableVersionLabel}
+                          </Text>
+                        </Text>
+                      </View>
                     </View>
                   </View>
 
@@ -812,34 +811,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
   },
-  updateVersions: {
-    minHeight: 50,
-    marginTop: 11,
-    paddingHorizontal: 12,
+  updateVersionsInline: {
+    marginTop: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    borderWidth: 1,
-    borderColor: RC_THEME.colors.border,
-    borderRadius: RC_THEME.radius.small,
-    backgroundColor: RC_THEME.colors.surfaceInput,
+    flexWrap: 'wrap',
+    gap: 5,
   },
-  updateVersionItem: {
-    flex: 1,
-    alignItems: 'center',
+  updateVersionInlineText: {
+    fontSize: 10,
+    lineHeight: 14,
   },
   updateVersionLabel: {
     color: RC_THEME.colors.textMuted,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   updateVersionValue: {
-    marginTop: 3,
     color: RC_THEME.colors.textSection,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '800',
   },
   updateVersionAvailable: {

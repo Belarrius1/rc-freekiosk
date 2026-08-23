@@ -140,8 +140,9 @@ describe('RC Terminal tablet layout', () => {
     expect(quickSettings).toContain('Check for updates');
     expect(quickSettings).toContain('handleCheckForUpdates();');
     expect(quickSettings).toContain('updateCheckInFlightRef');
-    expect(quickSettings).toContain('>Installed</Text>');
-    expect(quickSettings).toContain('>Available</Text>');
+    expect(quickSettings).toContain('styles.updateVersionsInline');
+    expect(quickSettings).toContain('>Installed </Text>');
+    expect(quickSettings).toContain('>Available </Text>');
     expect(quickSettings).toContain('isBatterySafeForPublicUpdate');
     expect(quickSettings).toContain('KioskModule.isDeviceOwner()');
     expect(quickSettings).toContain('isTrustedRcUpdateUrl');
@@ -251,11 +252,13 @@ describe('RC Terminal quick login hardening', () => {
     expect(nativeKiosk).toContain(
       'webView.postUrl("https://reliccommander.com/terminal/session", postBody)',
     );
-    expect(
-      nativeKiosk.match(/getUIManagerForReactTag/g)?.length,
-    ).toBeGreaterThanOrEqual(3);
+    expect(nativeKiosk).toContain('ReactFindViewUtil.findView(');
+    expect(nativeKiosk).toContain('relicCommanderWebViewNativeId');
+    expect(nativeKiosk).toContain('getUIManagerForReactTag');
     expect(nativeKiosk).not.toContain('UIManagerType.FABRIC');
     expect(nativeKiosk).toContain('body?.fill(0)');
+    expect(webView).toContain('nativeID="rc-main-webview"');
+    expect(webView).toContain('collapsable={false}');
     expect(webView).toContain('postRcTerminalSession');
     expect(webView).not.toMatch(/injectJavaScript\([^)]*ticket/s);
   });

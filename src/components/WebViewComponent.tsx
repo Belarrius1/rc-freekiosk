@@ -961,9 +961,14 @@ const WebViewComponent = forwardRef<WebViewComponentRef, WebViewComponentProps>(
     }
 
     return (
-      <View style={styles.container} ref={containerViewRef}>
+      <View
+        style={styles.container}
+        ref={containerViewRef}
+        collapsable={false}
+      >
         <WebView
           ref={webViewRef}
+          nativeID="rc-main-webview"
           source={{ uri: error ? 'about:blank' : url }}
           style={styles.webview}
           // Keep browser identity consistent for security challenges such as
