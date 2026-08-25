@@ -566,6 +566,22 @@ Write-Host "✅ Device provisioned!"
 
 ## Troubleshooting
 
+### RC Terminal suspend diagnostic build
+
+The dedicated RC Terminal diagnostic build temporarily disables the complete Wi-Fi
+radio whenever Android reports that the screen has become non-interactive. It restores
+Wi-Fi on screen wake and lets Android reconnect to the previously configured network.
+
+This experiment is intentionally restricted to Device Owner installations. A short
+partial WakeLock keeps the CPU running while the asynchronous Wi-Fi shutdown begins,
+reducing the chance that the vendor driver enters suspend in the middle of its power-down
+transition. If the tablet reboots while Wi-Fi is off, a marker in device-protected storage
+causes `BootReceiver` to restore it automatically.
+
+No additional ADB command is required beyond the existing Device Owner provisioning.
+The behavior is controlled by `EXPERIMENT_ENABLED` in `SleepWifiController.kt` and should
+be disabled or replaced with an opt-in administrator setting after the diagnostic period.
+
 ### Error: "PIN required for first setup"
 
 **Cause**: Device has no PIN configured, but none was provided.
@@ -679,7 +695,6 @@ adb shell pm clear com.freekiosk
 - [REST API Documentation](REST-API) - Remote control via HTTP
 - [MDM Specification](MDM-SPEC) - Enterprise deployment
 - [Installation Guide](Installation) - Manual setup instructions
-
 
 
 

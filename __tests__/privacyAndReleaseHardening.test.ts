@@ -356,4 +356,39 @@ describe('Kiosk wake-up hardening', () => {
     expect(activity).toContain('hide(WindowInsets.Type.navigationBars())');
     expect(activity).toContain('View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY');
   });
+
+  it('powers Wi-Fi down during sleep and restores only kiosk-owned state', () => {
+    const controller = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/SleepWifiController.kt',
+    );
+    const screenReceiver = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/ScreenStateReceiver.kt',
+    );
+    const overlayService = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/OverlayService.kt',
+    );
+    const bootReceiver = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/BootReceiver.kt',
+    );
+    const activity = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/MainActivity.kt',
+    );
+
+    expect(controller).toContain('private const val EXPERIMENT_ENABLED = true');
+    expect(controller).toContain('PowerManager.PARTIAL_WAKE_LOCK');
+    expect(controller).toContain('createDeviceProtectedStorageContext()');
+    expect(controller).toContain('putBoolean(KEY_DISABLED_FOR_SLEEP, true).commit()');
+    expect(controller).toContain('wifiManager.setWifiEnabled(false)');
+    expect(controller).toContain('wifiManager.setWifiEnabled(true)');
+    expect(controller).toContain('dpm.isDeviceOwnerApp(context.packageName)');
+    expect(screenReceiver).toContain('SleepWifiController.onScreenOff(context)');
+    expect(screenReceiver).toContain('SleepWifiController.onScreenOn(context)');
+    expect(overlayService).toContain(
+      'SleepWifiController.onScreenOff(this@OverlayService)',
+    );
+    expect(bootReceiver).toContain('SleepWifiController.restoreAfterBoot(context)');
+    expect(activity).toContain(
+      'SleepWifiController.restoreIfInteractive(applicationContext)',
+    );
+  });
 });

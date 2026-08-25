@@ -178,6 +178,7 @@ class OverlayService : Service() {
             when (intent?.action) {
                 Intent.ACTION_SCREEN_ON -> {
                     DebugLog.d("OverlayService", "Screen ON - ensuring overlay is visible")
+                    SleepWifiController.onScreenOn(this@OverlayService)
                     // Recréer l'overlay si nécessaire
                     if (overlayView == null) {
                         createOverlay()
@@ -191,6 +192,7 @@ class OverlayService : Service() {
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     DebugLog.d("OverlayService", "Screen OFF")
+                    SleepWifiController.onScreenOff(this@OverlayService)
                 }
             }
         }

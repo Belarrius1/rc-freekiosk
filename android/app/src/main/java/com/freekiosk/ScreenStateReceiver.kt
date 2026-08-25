@@ -36,6 +36,7 @@ class ScreenStateReceiver(
             Intent.ACTION_SCREEN_ON -> {
                 Log.d(TAG, "Screen turned ON")
                 isScreenOn = true
+                SleepWifiController.onScreenOn(context)
                 try {
                     onScreenOn?.invoke()
                 } catch (e: Exception) {
@@ -45,6 +46,10 @@ class ScreenStateReceiver(
             Intent.ACTION_SCREEN_OFF -> {
                 Log.d(TAG, "Screen turned OFF")
                 isScreenOn = false
+
+                // Dedicated RC Terminal diagnostic build: fully power down Wi-Fi before
+                // deep sleep to avoid the vendor rwnx host-wake suspend failure.
+                SleepWifiController.onScreenOff(context)
 
                 // Dismiss the soft keyboard so it doesn't persist after the screen wakes up.
                 // Needed when the user leaves a focused input (e.g. Force Numeric mode) and the

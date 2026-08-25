@@ -98,6 +98,11 @@ class BootReceiver : BroadcastReceiver() {
 
             DebugLog.d("BootReceiver", "Boot detected: ${intent.action}")
 
+            // If the previous session ended while the suspend experiment had Wi-Fi
+            // powered down, restore it even during direct boot. The recovery marker is
+            // stored in device-protected preferences and is available at this stage.
+            SleepWifiController.restoreAfterBoot(context)
+
             // ── LOCKED_BOOT_COMPLETED: CE (user-encrypted) storage is NOT yet available ──
             // Any read from RKStorage (SQLite) will fail and return its safe default (false).
             // We instead read the DE SharedPreferences flag that was saved on the previous

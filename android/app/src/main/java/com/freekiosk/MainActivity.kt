@@ -105,6 +105,10 @@ class MainActivity : ReactActivity() {
     devicePolicyManager = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
     adminComponent = ComponentName(this, DeviceAdminReceiver::class.java)
 
+    // Recover Wi-Fi if the process was recreated after a screen-on broadcast was missed.
+    // The controller verifies that the device is interactive before doing anything.
+    SleepWifiController.restoreIfInteractive(applicationContext)
+
     // Register screen state receiver to track screen on/off events
     registerScreenStateReceiver()
     
