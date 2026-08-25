@@ -233,7 +233,14 @@ describe('RC Terminal tablet layout', () => {
     expect(kiosk).toContain('!hideMusicIcon &&');
     expect(kiosk).toContain('musicPlaybackState.available &&');
     expect(kiosk).toContain('musicPlaybackState.ready &&');
-    expect(kiosk).toContain('musicButtonRight = settingsButtonRight + 68');
+    expect(kiosk).toContain('styles.kioskMusicButtonRightEdge');
+    expect(kiosk).toContain('styles.kioskSettingsButtonRightEdge');
+    expect(kiosk).toContain('name="menu"');
+    expect(kiosk).toContain("top: '50%'");
+    expect(kiosk).toContain('right: publicControlsRight');
+    expect(kiosk).not.toContain(
+      '{ top: settingsButtonTop, right: settingsButtonRight }',
+    );
     expect(kiosk).toContain(
       'hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}',
     );

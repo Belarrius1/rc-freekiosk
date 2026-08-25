@@ -3415,13 +3415,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     resetTimer();
   };
 
-  const settingsButtonTop =
-    (statusBarEnabled ? 28 : 0) +
-    (dashboardModeEnabled ? 28 : 0) +
-    Math.max(safeAreaInsets.top, 8);
-  // Keep the public cog clear of close buttons used by top-right web modals.
-  const settingsButtonRight = Math.max(safeAreaInsets.right, 8) + 100;
-  const musicButtonRight = settingsButtonRight + 68;
+  // Keep public controls away from transient System UI touch regions at wake.
+  const publicControlsRight = Math.max(safeAreaInsets.right, 12);
 
   return (
     <View style={styles.container}>
@@ -3572,7 +3567,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
                   style={[
                     styles.kioskSettingsButton,
                     styles.kioskMusicButton,
-                    { top: settingsButtonTop, right: musicButtonRight },
+                    styles.kioskMusicButtonRightEdge,
+                    { right: publicControlsRight },
                   ]}
                   onPress={handleToggleMusicPlayback}
                 >
@@ -3596,11 +3592,12 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
               hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
               style={[
                 styles.kioskSettingsButton,
-                { top: settingsButtonTop, right: settingsButtonRight },
+                styles.kioskSettingsButtonRightEdge,
+                { right: publicControlsRight },
               ]}
               onPress={handleOpenQuickSettings}
             >
-              <MaterialCommunityIcons name="cog" size={20} color="#FFFFFF" />
+              <MaterialCommunityIcons name="menu" size={24} color="#FFFFFF" />
             </TouchableOpacity>
           </>
         )}
@@ -3821,6 +3818,14 @@ const styles = StyleSheet.create({
   kioskMusicButton: {
     borderColor: RC_THEME.colors.primary,
     backgroundColor: RC_THEME.colors.surfaceCardDeep,
+  },
+  kioskMusicButtonRightEdge: {
+    top: '50%',
+    transform: [{ translateY: -78 }],
+  },
+  kioskSettingsButtonRightEdge: {
+    top: '50%',
+    transform: [{ translateY: -22 }],
   },
   webBackButton: {
     position: 'absolute',
