@@ -68,6 +68,12 @@ class MainActivity : ReactActivity() {
   // Debounce handler for hideSystemUI to avoid dismissing the power menu (GlobalActions)
   // on devices where onWindowFocusChanged fires rapidly (e.g. TECNO/HiOS on Android 14)
   private val hideSystemUIHandler = Handler(Looper.getMainLooper())
+  // Kept separate from the focus debounce: an OEM focus bounce during SCREEN_ON must not
+  // cancel every remaining wake recovery attempt and leave a touch-consuming system bar up.
+  private val immersiveRecoveryHandler = Handler(Looper.getMainLooper())
+  private val systemBarsRecoveryRunnable = Runnable {
+    restoreImmersiveModeIfSafe()
+  }
   private var lastFocusLostTime = 0L
 
   override fun getMainComponentName(): String = "FreeKiosk"
@@ -126,6 +132,17 @@ class MainActivity : ReactActivity() {
     ViewCompat.setOnApplyWindowInsetsListener(contentView) { view, insets ->
       val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
       view.setPadding(0, 0, 0, imeInsets.bottom)
+
+      // Some OEM SystemUI builds keep a transparent status-bar touch layer alive when the
+      // navigation bar fails to retract after wake. React to the actual inset state instead
+      // of relying only on SCREEN_ON/window-focus callbacks. Do not interfere with the IME;
+      // closing it will dispatch fresh insets and trigger recovery if bars remain visible.
+      val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+      val systemBarsVisible = insets.isVisible(WindowInsetsCompat.Type.systemBars())
+      if (systemBarsVisible && !imeVisible) {
+        immersiveRecoveryHandler.removeCallbacks(systemBarsRecoveryRunnable)
+        immersiveRecoveryHandler.postDelayed(systemBarsRecoveryRunnable, 200L)
+      }
       insets
     }
 
@@ -549,6 +566,10 @@ class MainActivity : ReactActivity() {
   override fun onResume() {
     super.onResume()
 
+    // OEMs do not all deliver SCREEN_ON and window-focus callbacks in the same order.
+    // onResume is an additional safe entry point; each attempt still checks window focus.
+    scheduleImmersiveModeRecovery()
+
     readExternalAppConfig()
     
     // Re-register screen state receiver in case it was lost
@@ -814,23 +835,35 @@ class MainActivity : ReactActivity() {
     }
   }
 
+  private fun restoreImmersiveModeIfSafe() {
+    if (
+      !PrintModule.isPrintActive &&
+      !isFinishing &&
+      !isDestroyed &&
+      window.decorView.hasWindowFocus()
+    ) {
+      hideSystemUI()
+    }
+  }
+
+  private fun scheduleImmersiveModeRecovery() {
+    immersiveRecoveryHandler.removeCallbacksAndMessages(null)
+    longArrayOf(0L, 300L, 1000L, 2000L, 3000L).forEach { delayMs ->
+      immersiveRecoveryHandler.postDelayed({
+        restoreImmersiveModeIfSafe()
+      }, delayMs)
+    }
+  }
+
   /**
    * Some Android/OEM builds restore the navigation bar after SCREEN_ON without
-   * delivering a useful window-focus transition. Re-apply immersive mode across
-   * the short wake-up window so a late system-bar restoration cannot remain stuck.
+   * delivering a useful window-focus transition. Re-apply immersive mode across a
+   * longer wake-up window on a handler that focus-loss debouncing cannot cancel.
    */
   private fun restoreImmersiveModeAfterScreenOn() {
     runOnUiThread {
       if (PrintModule.isPrintActive || isFinishing) return@runOnUiThread
-
-      hideSystemUIHandler.removeCallbacksAndMessages(null)
-      longArrayOf(0L, 300L, 1000L).forEach { delayMs ->
-        hideSystemUIHandler.postDelayed({
-          if (!PrintModule.isPrintActive && !isFinishing) {
-            hideSystemUI()
-          }
-        }, delayMs)
-      }
+      scheduleImmersiveModeRecovery()
     }
   }
 
@@ -1906,6 +1939,8 @@ class MainActivity : ReactActivity() {
   }
 
   override fun onDestroy() {
+    hideSystemUIHandler.removeCallbacksAndMessages(null)
+    immersiveRecoveryHandler.removeCallbacksAndMessages(null)
     super.onDestroy()
     disableKioskRestrictions()
     

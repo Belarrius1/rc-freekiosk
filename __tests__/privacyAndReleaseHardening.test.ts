@@ -286,7 +286,19 @@ describe('Kiosk wake-up hardening', () => {
 
     expect(screenReceiver).toContain('onScreenOn?.invoke()');
     expect(activity).toContain('restoreImmersiveModeAfterScreenOn()');
-    expect(activity).toContain('longArrayOf(0L, 300L, 1000L)');
+    expect(activity).toContain(
+      'longArrayOf(0L, 300L, 1000L, 2000L, 3000L)',
+    );
+    expect(activity).toContain(
+      'private val immersiveRecoveryHandler = Handler(Looper.getMainLooper())',
+    );
+    expect(activity).toContain('window.decorView.hasWindowFocus()');
+    expect(activity).toContain(
+      'insets.isVisible(WindowInsetsCompat.Type.systemBars())',
+    );
+    expect(activity).toContain(
+      'immersiveRecoveryHandler.removeCallbacksAndMessages(null)',
+    );
     expect(activity).toContain('ScreenStateReceiver {');
     expect(activity).toContain('hide(WindowInsets.Type.navigationBars())');
     expect(activity).toContain('View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY');
