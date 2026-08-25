@@ -283,6 +283,8 @@ describe('RC Terminal tablet layout', () => {
     );
     expect(batteryWarning).toContain('transform: [{ translateY: 34 }]');
     expect(batteryWarning).toContain('Animated.loop(');
+    expect(batteryWarning).toContain('battery.level <= 5');
+    expect(batteryWarning).not.toContain('battery.level <= 10');
     expect(batteryWarning).toContain('pointerEvents="none"');
     expect(kiosk).not.toContain(
       '{ top: settingsButtonTop, right: settingsButtonRight }',

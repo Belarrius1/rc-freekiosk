@@ -365,7 +365,7 @@ export default function KioskQuickSettingsDialog({
       setFlashlightOn(enabled);
     } catch (error) {
       console.warn('[QuickSettings] flashlight toggle error:', error);
-      Alert.alert('Flashlight', 'The flashlight is unavailable on this device.');
+      Alert.alert('Nightlight', 'The nightlight is unavailable on this device.');
     } finally {
       setFlashlightBusy(false);
     }
@@ -498,9 +498,9 @@ export default function KioskQuickSettingsDialog({
                   accessibilityLabel={
                     flashlightAvailable
                       ? flashlightOn
-                        ? 'Turn flashlight off'
-                        : 'Turn flashlight on'
-                      : 'Flashlight unavailable'
+                        ? 'Turn nightlight off'
+                        : 'Turn nightlight on'
+                      : 'Nightlight unavailable'
                   }
                   disabled={!flashlightAvailable || flashlightBusy}
                   activeOpacity={0.75}
@@ -531,7 +531,7 @@ export default function KioskQuickSettingsDialog({
                       }
                     />
                   )}
-                  <Text style={styles.settingLabel}>Flashlight</Text>
+                  <Text style={styles.settingLabel}>Nightlight</Text>
                 </TouchableOpacity>
               </View>
 

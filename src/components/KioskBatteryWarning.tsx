@@ -132,7 +132,7 @@ const KioskBatteryWarning: React.FC<KioskBatteryWarningProps> = ({
 
   useEffect(() => {
     const shouldBlink =
-      enabled && battery !== null && !battery.isCharging && battery.level <= 10;
+      enabled && battery !== null && !battery.isCharging && battery.level <= 5;
 
     if (!shouldBlink) {
       blinkOpacity.stopAnimation();
