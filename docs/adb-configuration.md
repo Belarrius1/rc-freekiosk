@@ -499,6 +499,9 @@ adb shell appops set com.freekiosk android:get_usage_stats allow
 echo "Granting WRITE_SECURE_SETTINGS (required for auto-enabling accessibility service)..."
 adb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS
 
+echo "Granting WRITE_SETTINGS app-op (Android 8 screen timeout fallback)..."
+adb shell appops set com.freekiosk android:write_settings allow
+
 echo "Configuring FreeKiosk..."
 adb shell am start -n com.freekiosk/.MainActivity \
     --es lock_package "$PACKAGE" \
@@ -539,6 +542,9 @@ adb shell appops set com.freekiosk android:get_usage_stats allow
 
 Write-Host "Granting WRITE_SECURE_SETTINGS..."
 adb shell pm grant com.freekiosk android.permission.WRITE_SECURE_SETTINGS
+
+Write-Host "Granting WRITE_SETTINGS app-op (Android 8 screen timeout fallback)..."
+adb shell appops set com.freekiosk android:write_settings allow
 
 Write-Host "Configuring FreeKiosk..."
 # Note: JSON escaping in PowerShell is complex, use individual parameters
@@ -673,7 +679,6 @@ adb shell pm clear com.freekiosk
 - [REST API Documentation](REST-API) - Remote control via HTTP
 - [MDM Specification](MDM-SPEC) - Enterprise deployment
 - [Installation Guide](Installation) - Manual setup instructions
-
 
 
 

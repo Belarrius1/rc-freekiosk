@@ -30,6 +30,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <!-- Android 8 fallback for the internal screen timeout control. Android 9+
+         Device Owner installations use DevicePolicyManager instead. -->
+    <uses-permission android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
     <!-- Applies the RC Terminal image to the Android home wallpaper. This makes
          system transitions visible during boot consistent with the kiosk theme. -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />

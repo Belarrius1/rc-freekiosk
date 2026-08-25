@@ -1,7 +1,9 @@
 package com.freekiosk
 
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -60,6 +62,23 @@ class ScreenTimeoutModule(private val reactContext: ReactApplicationContext) :
         }
 
         try {
+            if (canUseDeviceOwnerApi()) {
+                val devicePolicyManager = reactContext.getSystemService(
+                    Context.DEVICE_POLICY_SERVICE,
+                ) as DevicePolicyManager
+                val admin = ComponentName(
+                    reactContext,
+                    DeviceAdminReceiver::class.java,
+                )
+                devicePolicyManager.setSystemSetting(
+                    admin,
+                    Settings.System.SCREEN_OFF_TIMEOUT,
+                    timeout.toString(),
+                )
+                promise.resolve(timeout.toDouble())
+                return
+            }
+
             val changed = Settings.System.putLong(
                 reactContext.contentResolver,
                 Settings.System.SCREEN_OFF_TIMEOUT,
@@ -79,9 +98,16 @@ class ScreenTimeoutModule(private val reactContext: ReactApplicationContext) :
     }
 
     private fun canWriteSystemSettings(): Boolean {
-        if (Settings.System.canWrite(reactContext)) return true
-        return reactContext.checkCallingOrSelfPermission(
-            android.Manifest.permission.WRITE_SECURE_SETTINGS,
-        ) == PackageManager.PERMISSION_GRANTED
+        return canUseDeviceOwnerApi() || Settings.System.canWrite(reactContext)
+    }
+
+    /** Android 9+ lets a Device Owner change this specific system setting. */
+    private fun canUseDeviceOwnerApi(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+
+        val devicePolicyManager = reactContext.getSystemService(
+            Context.DEVICE_POLICY_SERVICE,
+        ) as DevicePolicyManager
+        return devicePolicyManager.isDeviceOwnerApp(reactContext.packageName)
     }
 }

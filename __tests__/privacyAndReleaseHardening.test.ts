@@ -182,6 +182,15 @@ describe('RC Terminal tablet layout', () => {
     expect(screenTimeout).toContain("{ label: '10 min', value: 600_000 }");
     expect(nativeScreenTimeout).toContain('Settings.System.SCREEN_OFF_TIMEOUT');
     expect(nativeScreenTimeout).toContain('ALLOWED_TIMEOUTS_MS');
+    expect(nativeScreenTimeout).toContain(
+      'devicePolicyManager.setSystemSetting(',
+    );
+    expect(nativeScreenTimeout).toContain(
+      'devicePolicyManager.isDeviceOwnerApp(reactContext.packageName)',
+    );
+    expect(nativeScreenTimeout).toContain(
+      'Build.VERSION.SDK_INT < Build.VERSION_CODES.P',
+    );
     expect(nativeScreenTimeout).not.toContain('ACTION_SETTINGS');
     expect(mainApplication).toContain('add(ScreenTimeoutPackage())');
     expect(wifi).toContain('headerLandscape');
