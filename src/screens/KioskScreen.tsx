@@ -59,6 +59,7 @@ import BluetoothDialog from '../components/BluetoothDialog';
 import AudioOutputDialog from '../components/AudioOutputDialog';
 import BrightnessDialog from '../components/BrightnessDialog';
 import ScreenTimeoutDialog from '../components/ScreenTimeoutDialog';
+import KioskBatteryWarning from '../components/KioskBatteryWarning';
 import KioskQuickSettingsDialog, {
   KioskQuickSetting,
 } from '../components/KioskQuickSettingsDialog';
@@ -3648,6 +3649,15 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             </TouchableOpacity>
           </>
         )}
+
+      <KioskBatteryWarning
+        enabled={
+          displayMode === 'webview' &&
+          !isScreensaverActive &&
+          !isScheduledSleep
+        }
+        right={publicControlsRight}
+      />
 
       <KioskQuickSettingsDialog
         visible={quickSettingsDialogVisible}

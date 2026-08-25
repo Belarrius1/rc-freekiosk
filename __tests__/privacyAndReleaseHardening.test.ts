@@ -221,6 +221,9 @@ describe('RC Terminal tablet layout', () => {
     );
     const playerApi = readProjectFile('src/utils/rcMusicPlayerApi.ts');
     const kiosk = readProjectFile('src/screens/KioskScreen.tsx');
+    const batteryWarning = readProjectFile(
+      'src/components/KioskBatteryWarning.tsx',
+    );
 
     expect(player).toContain('RC_TERMINAL_MUSIC_PLAYER');
     expect(player).toContain('mediaPlaybackRequiresUserAction={false}');
@@ -262,6 +265,16 @@ describe('RC Terminal tablet layout', () => {
     expect(kiosk).toContain('name="menu"');
     expect(kiosk).toContain("top: '50%'");
     expect(kiosk).toContain('right: publicControlsRight');
+    expect(kiosk).toContain('<KioskBatteryWarning');
+    expect(batteryWarning).toContain(
+      'BATTERY_BANNER_DURATION_MS = 10_000',
+    );
+    expect(batteryWarning).toContain(
+      "name={banner.critical ? 'battery-outline' : 'battery-20'}",
+    );
+    expect(batteryWarning).toContain('transform: [{ translateY: 34 }]');
+    expect(batteryWarning).toContain('Animated.loop(');
+    expect(batteryWarning).toContain('pointerEvents="none"');
     expect(kiosk).not.toContain(
       '{ top: settingsButtonTop, right: settingsButtonRight }',
     );
