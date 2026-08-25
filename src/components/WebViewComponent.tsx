@@ -1437,6 +1437,7 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
+    backgroundColor: '#000',
   },
   loadingContainer: {
     position: 'absolute',

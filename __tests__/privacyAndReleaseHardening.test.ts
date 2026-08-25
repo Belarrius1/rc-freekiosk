@@ -162,6 +162,9 @@ describe('RC Terminal tablet layout', () => {
     expect(nativeUpdater).toContain('if (silentOnly)');
     expect(nativeUpdater).toContain('refusing to open system installation UI');
     expect(webView).toContain('errorCardLandscape');
+    expect(webView).toMatch(
+      /webview:\s*\{[^}]*backgroundColor: '#000'/,
+    );
     expect(wifi).toContain('headerLandscape');
     expect(bluetooth).toContain('headerLandscape');
     expect(pin).toContain('primaryContentLandscape');
