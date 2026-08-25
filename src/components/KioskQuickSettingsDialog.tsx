@@ -25,7 +25,11 @@ import UpdateModule, {
 import type { UpdateInfo } from '../utils/UpdateModule';
 import { RC_THEME } from '../theme/relicCommanderTheme';
 
-const { SystemInfoModule, UpdateModule: NativeUpdateModule } = NativeModules;
+const {
+  FlashlightModule,
+  SystemInfoModule,
+  UpdateModule: NativeUpdateModule,
+} = NativeModules;
 
 type PublicUpdateStatus =
   | 'idle'
@@ -36,7 +40,12 @@ type PublicUpdateStatus =
   | 'blocked'
   | 'error';
 
-export type KioskQuickSetting = 'wifi' | 'audio' | 'brightness' | 'bluetooth';
+export type KioskQuickSetting =
+  | 'wifi'
+  | 'audio'
+  | 'brightness'
+  | 'bluetooth'
+  | 'sleep';
 
 interface Props {
   visible: boolean;
@@ -75,6 +84,7 @@ const QUICK_SETTINGS: Array<{
   { key: 'audio', label: 'Audio', icon: 'volume-high' },
   { key: 'brightness', label: 'Brightness', icon: 'brightness-6' },
   { key: 'bluetooth', label: 'Bluetooth', icon: 'bluetooth' },
+  { key: 'sleep', label: 'Screen sleep', icon: 'power-sleep' },
 ];
 
 function versionLabel(versionName: string): string {
@@ -103,6 +113,9 @@ export default function KioskQuickSettingsDialog({
   const [updateMessage, setUpdateMessage] = useState(
     'Check for a stable RC-FreeKiosk update.',
   );
+  const [flashlightAvailable, setFlashlightAvailable] = useState(false);
+  const [flashlightOn, setFlashlightOn] = useState(false);
+  const [flashlightBusy, setFlashlightBusy] = useState(false);
   const updateCheckInFlightRef = useRef(false);
   const updateInstallationInFlightRef = useRef(false);
   const { width, height } = useWindowDimensions();
@@ -197,6 +210,34 @@ export default function KioskQuickSettingsDialog({
       clearInterval(interval);
     };
   }, [handleCheckForUpdates, visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+
+    (async () => {
+      try {
+        const available = Boolean(await FlashlightModule?.isAvailable?.());
+        const enabled = available
+          ? Boolean(await FlashlightModule?.getState?.())
+          : false;
+        if (active) {
+          setFlashlightAvailable(available);
+          setFlashlightOn(enabled);
+        }
+      } catch (error) {
+        console.warn('[QuickSettings] flashlight status error:', error);
+        if (active) {
+          setFlashlightAvailable(false);
+          setFlashlightOn(false);
+        }
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [visible]);
 
   const batteryLabel =
     status.batteryLevel === null ? '--' : `${status.batteryLevel}%`;
@@ -316,6 +357,20 @@ export default function KioskQuickSettingsDialog({
     );
   };
 
+  const handleToggleFlashlight = async (): Promise<void> => {
+    if (!flashlightAvailable || flashlightBusy) return;
+    setFlashlightBusy(true);
+    try {
+      const enabled = Boolean(await FlashlightModule.setEnabled(!flashlightOn));
+      setFlashlightOn(enabled);
+    } catch (error) {
+      console.warn('[QuickSettings] flashlight toggle error:', error);
+      Alert.alert('Flashlight', 'The flashlight is unavailable on this device.');
+    } finally {
+      setFlashlightBusy(false);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -423,7 +478,10 @@ export default function KioskQuickSettingsDialog({
                     accessibilityRole="button"
                     accessibilityLabel={`Configure ${setting.label}`}
                     activeOpacity={0.75}
-                    style={styles.settingButton}
+                    style={[
+                      styles.settingButton,
+                      isLandscape && styles.settingButtonLandscape,
+                    ]}
                     onPress={() => onSelect(setting.key)}
                   >
                     <MaterialCommunityIcons
@@ -434,6 +492,47 @@ export default function KioskQuickSettingsDialog({
                     <Text style={styles.settingLabel}>{setting.label}</Text>
                   </TouchableOpacity>
                 ))}
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    flashlightAvailable
+                      ? flashlightOn
+                        ? 'Turn flashlight off'
+                        : 'Turn flashlight on'
+                      : 'Flashlight unavailable'
+                  }
+                  disabled={!flashlightAvailable || flashlightBusy}
+                  activeOpacity={0.75}
+                  style={[
+                    styles.settingButton,
+                    isLandscape && styles.settingButtonLandscape,
+                    flashlightOn && styles.settingButtonActive,
+                    (!flashlightAvailable || flashlightBusy) &&
+                      styles.settingButtonDisabled,
+                  ]}
+                  onPress={async () => {
+                    await handleToggleFlashlight();
+                  }}
+                >
+                  {flashlightBusy ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={RC_THEME.colors.accentBright}
+                    />
+                  ) : (
+                    <MaterialCommunityIcons
+                      name={flashlightOn ? 'flashlight-off' : 'flashlight'}
+                      size={30}
+                      color={
+                        flashlightAvailable
+                          ? RC_THEME.colors.accentBright
+                          : RC_THEME.colors.textMuted
+                      }
+                    />
+                  )}
+                  <Text style={styles.settingLabel}>Flashlight</Text>
+                </TouchableOpacity>
               </View>
 
               <TouchableOpacity
@@ -623,7 +722,8 @@ const styles = StyleSheet.create({
     ...RC_THEME.shadow.card,
   },
   cardLandscape: {
-    maxWidth: 880,
+    width: '94%',
+    maxWidth: 1080,
     paddingHorizontal: 22,
     paddingVertical: 16,
   },
@@ -745,6 +845,16 @@ const styles = StyleSheet.create({
     borderRadius: RC_THEME.radius.medium,
     backgroundColor: RC_THEME.colors.surface,
     ...RC_THEME.shadow.glow,
+  },
+  settingButtonLandscape: {
+    width: '31.5%',
+  },
+  settingButtonActive: {
+    borderColor: RC_THEME.colors.primary,
+    backgroundColor: RC_THEME.colors.surfaceAccent,
+  },
+  settingButtonDisabled: {
+    opacity: 0.45,
   },
   settingLabel: {
     marginTop: 6,

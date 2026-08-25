@@ -38,6 +38,7 @@ class MainApplication : Application(), ReactApplication {
           add(BluetoothControlPackage())
           add(AudioControlPackage())
           add(FlashlightPackage())
+          add(ScreenTimeoutPackage())
           add(RotationControlPackage())
         },
     )

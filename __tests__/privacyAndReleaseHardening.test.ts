@@ -133,6 +133,15 @@ describe('RC Terminal tablet layout', () => {
       'android/app/src/main/java/com/freekiosk/SystemInfoModule.kt',
     );
     const webView = readProjectFile('src/components/WebViewComponent.tsx');
+    const screenTimeout = readProjectFile(
+      'src/components/ScreenTimeoutDialog.tsx',
+    );
+    const nativeScreenTimeout = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/ScreenTimeoutModule.kt',
+    );
+    const mainApplication = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/MainApplication.kt',
+    );
     const wifi = readProjectFile('src/components/WifiDialog.tsx');
     const bluetooth = readProjectFile('src/components/BluetoothDialog.tsx');
     const pin = readProjectFile('src/components/PinInput.tsx');
@@ -165,6 +174,16 @@ describe('RC Terminal tablet layout', () => {
     expect(webView).toMatch(
       /webview:\s*\{[^}]*backgroundColor: '#000'/,
     );
+    expect(quickSettings).toContain("{ key: 'sleep', label: 'Screen sleep'");
+    expect(quickSettings).toContain('FlashlightModule.setEnabled');
+    expect(quickSettings).toContain('styles.settingButtonLandscape');
+    expect(quickSettings).toContain('maxWidth: 1080');
+    expect(screenTimeout).toContain("{ label: '30 sec', value: 30_000 }");
+    expect(screenTimeout).toContain("{ label: '10 min', value: 600_000 }");
+    expect(nativeScreenTimeout).toContain('Settings.System.SCREEN_OFF_TIMEOUT');
+    expect(nativeScreenTimeout).toContain('ALLOWED_TIMEOUTS_MS');
+    expect(nativeScreenTimeout).not.toContain('ACTION_SETTINGS');
+    expect(mainApplication).toContain('add(ScreenTimeoutPackage())');
     expect(wifi).toContain('headerLandscape');
     expect(bluetooth).toContain('headerLandscape');
     expect(pin).toContain('primaryContentLandscape');
@@ -225,6 +244,8 @@ describe('RC Terminal tablet layout', () => {
     expect(player).toContain('__rcKioskToggleMusicMuted');
     expect(kiosk).toContain('musicPlayerInitialized &&');
     expect(kiosk).toContain('setMusicPlayerInitialized(true)');
+    expect(kiosk).toContain('MUSIC_IDLE_UNMOUNT_DELAY_MS = 10_000');
+    expect(kiosk).toContain('setMusicPlayerInitialized(false)');
     expect(kiosk).toContain('handleOpenMusicPlayer');
     expect(kiosk).toContain('handleCloseMusicPlayer');
     expect(kiosk).toContain('kiosk-music-toggle-button');

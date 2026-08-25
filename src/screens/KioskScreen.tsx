@@ -58,6 +58,7 @@ import WifiDialog from '../components/WifiDialog';
 import BluetoothDialog from '../components/BluetoothDialog';
 import AudioOutputDialog from '../components/AudioOutputDialog';
 import BrightnessDialog from '../components/BrightnessDialog';
+import ScreenTimeoutDialog from '../components/ScreenTimeoutDialog';
 import KioskQuickSettingsDialog, {
   KioskQuickSetting,
 } from '../components/KioskQuickSettingsDialog';
@@ -87,6 +88,7 @@ interface KioskScreenProps {
 
 /** Duration (ms) the motion pre-check window runs before activating the screensaver. */
 const MOTION_PRE_CHECK_DELAY_MS = 10_000;
+const MUSIC_IDLE_UNMOUNT_DELAY_MS = 10_000;
 
 const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   const isFocused = useIsFocused();
@@ -102,6 +104,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     useState<boolean>(false);
   const [audioDialogVisible, setAudioDialogVisible] = useState<boolean>(false);
   const [brightnessDialogVisible, setBrightnessDialogVisible] =
+    useState<boolean>(false);
+  const [screenTimeoutDialogVisible, setScreenTimeoutDialogVisible] =
     useState<boolean>(false);
   const [musicPlayerInitialized, setMusicPlayerInitialized] =
     useState<boolean>(false);
@@ -309,6 +313,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   // WebView Back Button states
   const webViewRef = useRef<WebViewComponentRef>(null);
   const musicPlayerRef = useRef<RelicCommanderMusicPlayerRef>(null);
+  const musicIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [webViewBackButtonEnabled, setWebViewBackButtonEnabled] =
     useState<boolean>(false);
   const [webViewBackButtonXPercent, setWebViewBackButtonXPercent] =
@@ -594,6 +599,47 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     });
     return () => sub.remove();
   }, [pauseWebMediaWhenHidden, displayMode]);
+
+  // Release the separate music WebView after ten seconds without playback. Do not
+  // interrupt its initial load, but close an open controller once a ready player
+  // remains paused long enough.
+  useEffect(() => {
+    if (musicIdleTimerRef.current) {
+      clearTimeout(musicIdleTimerRef.current);
+      musicIdleTimerRef.current = null;
+    }
+
+    if (
+      !musicPlayerInitialized ||
+      musicPlaybackState.playing ||
+      (musicPlayerVisible && !musicPlaybackState.ready)
+    ) {
+      return;
+    }
+
+    musicIdleTimerRef.current = setTimeout(() => {
+      musicIdleTimerRef.current = null;
+      setMusicPlayerVisible(false);
+      setMusicPlayerInitialized(false);
+      setMusicPlaybackState({
+        available: false,
+        ready: false,
+        playing: false,
+      });
+    }, MUSIC_IDLE_UNMOUNT_DELAY_MS);
+
+    return () => {
+      if (musicIdleTimerRef.current) {
+        clearTimeout(musicIdleTimerRef.current);
+        musicIdleTimerRef.current = null;
+      }
+    };
+  }, [
+    musicPlaybackState.playing,
+    musicPlaybackState.ready,
+    musicPlayerInitialized,
+    musicPlayerVisible,
+  ]);
 
   // Deactivate screensaver when the screen loses focus (navigating to Settings)
   // Only triggers cleanup on actual focus→blur transition (not when other deps change)
@@ -3406,6 +3452,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     if (setting === 'bluetooth') setBluetoothDialogVisible(true);
     if (setting === 'audio') setAudioDialogVisible(true);
     if (setting === 'brightness') setBrightnessDialogVisible(true);
+    if (setting === 'sleep') setScreenTimeoutDialogVisible(true);
   };
 
   const handleCloseDeviceDialog = (
@@ -3643,6 +3690,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       <BrightnessDialog
         visible={brightnessDialogVisible}
         onClose={() => handleCloseDeviceDialog(setBrightnessDialogVisible)}
+      />
+      <ScreenTimeoutDialog
+        visible={screenTimeoutDialogVisible}
+        onClose={() => handleCloseDeviceDialog(setScreenTimeoutDialogVisible)}
       />
 
       {/* Motion Detector - Active during pre-check OR when screensaver is ON (only if screen is focused) */}
