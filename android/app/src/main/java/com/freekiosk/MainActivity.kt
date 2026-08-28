@@ -126,6 +126,10 @@ class MainActivity : ReactActivity() {
     // Request Bluetooth runtime permissions (Android 12+ / API 31+)
     requestBluetoothPermissions()
 
+    // Fresh Device Owner installations start with the Bluetooth radio powered down.
+    // Existing installations and later user choices are preserved.
+    BluetoothInstallDefault.applyIfEligible(applicationContext)
+
     // Request Android 13+ WiFi scan permission for visible SSID results
     requestWifiPermissions()
 

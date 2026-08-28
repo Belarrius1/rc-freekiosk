@@ -51,6 +51,33 @@ describe('RC-FreeKiosk privacy profile', () => {
     expect(server).not.toContain('"/api/screenshot"');
     expect(server).not.toContain('"/api/camera/');
   });
+
+  it('disables Bluetooth only for fresh Device Owner installations', () => {
+    const bluetoothDefault = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/BluetoothInstallDefault.kt',
+    );
+    const activity = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/MainActivity.kt',
+    );
+
+    expect(bluetoothDefault).toContain(
+      'packageInfo.firstInstallTime == packageInfo.lastUpdateTime',
+    );
+    expect(bluetoothDefault).toContain(
+      'dpm.isDeviceOwnerApp(appContext.packageName)',
+    );
+    expect(bluetoothDefault).toContain('Manifest.permission.BLUETOOTH_CONNECT');
+    expect(bluetoothDefault).toContain('val accepted = adapter.disable()');
+    expect(bluetoothDefault).toContain('putBoolean(KEY_EVALUATED, true)');
+    expect(activity).toContain(
+      'BluetoothInstallDefault.applyIfEligible(applicationContext)',
+    );
+    expect(activity.indexOf('requestBluetoothPermissions()')).toBeLessThan(
+      activity.indexOf(
+        'BluetoothInstallDefault.applyIfEligible(applicationContext)',
+      ),
+    );
+  });
 });
 
 describe('RC-FreeKiosk release pipeline', () => {

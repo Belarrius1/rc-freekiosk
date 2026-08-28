@@ -173,6 +173,11 @@ Active admin set to component {com.freekiosk/com.freekiosk.DeviceAdminReceiver}
 > [!TIP]
 > **Success!** Your tablet is now in Device Owner mode.
 
+On a fresh Device Owner installation, RC FreeKiosk powers Bluetooth off once by
+default to avoid unnecessary idle battery use. It does not reapply this default after
+an APK update, and the player can enable Bluetooth later from the confined internal
+controls without opening Android Settings.
+
 #### 4. Reboot (Optional)
 
 ```bash
