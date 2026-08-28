@@ -10,6 +10,7 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.webkit.WebView
 import android.webkit.CookieManager
 import com.facebook.react.uimanager.UIManagerHelper
@@ -105,6 +106,44 @@ class KioskModule(reactContext: ReactApplicationContext) : ReactContextBaseJavaM
             promise.resolve(true)
         } catch (e: Exception) {
             promise.resolve(false)
+        }
+    }
+
+    // Explicitly raise the IME for a focused React Native TextInput. A plain
+    // TextInput.focus() can run before an Android Modal window gains focus,
+    // especially on vendor firmware, leaving the field focused without a keyboard.
+    @ReactMethod
+    fun showKeyboard(tag: Int, promise: Promise) {
+        UiThreadUtil.runOnUiThread {
+            try {
+                val uiManager = UIManagerHelper.getUIManagerForReactTag(
+                    reactApplicationContext,
+                    tag,
+                )
+                val inputView = uiManager?.resolveView(tag)
+                if (inputView == null) {
+                    promise.resolve(false)
+                    return@runOnUiThread
+                }
+
+                val imm = reactApplicationContext
+                    .getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+
+                // Retry briefly while the Modal window completes attachment/focus.
+                // Detached views are ignored, so closing the dialog cancels the effect.
+                longArrayOf(0L, 150L, 400L).forEach { delayMs ->
+                    inputView.postDelayed({
+                        if (inputView.isAttachedToWindow) {
+                            inputView.requestFocus()
+                            imm.restartInput(inputView)
+                            imm.showSoftInput(inputView, InputMethodManager.SHOW_IMPLICIT)
+                        }
+                    }, delayMs)
+                }
+                promise.resolve(true)
+            } catch (_: Exception) {
+                promise.resolve(false)
+            }
         }
     }
 

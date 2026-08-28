@@ -308,7 +308,9 @@ describe('RC Terminal tablet layout', () => {
     expect(kiosk).toContain('kiosk-terminal-login-button');
     expect(kiosk).toContain('!terminalSessionActive &&');
     expect(kiosk).toContain('name="key-variant"');
-    expect(terminalLogin).toContain('pinInputRef.current?.focus()');
+    expect(terminalLogin).toContain('KioskModule.showKeyboard(tag)');
+    expect(terminalLogin).toContain('showSoftInputOnFocus');
+    expect(terminalLogin).toContain('const timers = [250, 700]');
     expect(terminalLogin).toContain('returnKeyType="done"');
     expect(terminalLogin).toContain('WIFI_LOGIN_WAIT_TIMEOUT_MS = 15_000');
     expect(terminalLogin).toContain('info?.isConnected && info?.hasInternet');
@@ -368,6 +370,10 @@ describe('RC Terminal quick login hardening', () => {
     expect(nativeKiosk).toContain('ReactFindViewUtil.findView(');
     expect(nativeKiosk).toContain('relicCommanderWebViewNativeId');
     expect(nativeKiosk).toContain('getUIManagerForReactTag');
+    expect(nativeKiosk).toContain('fun showKeyboard(tag: Int, promise: Promise)');
+    expect(nativeKiosk).toContain('imm.restartInput(inputView)');
+    expect(nativeKiosk).toContain('imm.showSoftInput(inputView');
+    expect(nativeKiosk).toContain('longArrayOf(0L, 150L, 400L)');
     expect(nativeKiosk).not.toContain('UIManagerType.FABRIC');
     expect(nativeKiosk).toContain('body?.fill(0)');
     expect(webView).toContain('nativeID="rc-main-webview"');

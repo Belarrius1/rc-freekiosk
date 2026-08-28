@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  findNodeHandle,
   Keyboard,
   Modal,
   NativeModules,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +18,7 @@ import {
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import QRCode from 'react-native-qrcode-svg';
 import { RC_THEME } from '../theme/relicCommanderTheme';
+import KioskModule from '../utils/KioskModule';
 import {
   authenticateRcTerminal,
   loadRcTerminalAssociation,
@@ -265,10 +268,21 @@ export default function RcTerminalLoginDialog({
       return;
     }
 
-    // Android Modal transitions can consume TextInput's initial autoFocus.
-    // Focus again once the PIN view is mounted and the fade has started.
-    const timer = setTimeout(() => pinInputRef.current?.focus(), 250);
-    return () => clearTimeout(timer);
+    // Android Modal transitions can consume the initial soft-keyboard request
+    // even when the TextInput itself receives focus. Retry after the native
+    // window is visible, then ask Android's IME directly for this exact view.
+    const openKeyboard = (): void => {
+      const input = pinInputRef.current;
+      if (!input) return;
+      input.focus();
+      if (Platform.OS !== 'android') return;
+      const tag = findNodeHandle(input);
+      if (tag !== null) {
+        KioskModule.showKeyboard(tag).catch(() => {});
+      }
+    };
+    const timers = [250, 700].map(delay => setTimeout(openKeyboard, delay));
+    return () => timers.forEach(clearTimeout);
   }, [association, mode, retryUntil, visible]);
 
   const waitForWifiConnection = useCallback(
@@ -542,6 +556,7 @@ export default function RcTerminalLoginDialog({
                   value={pin}
                   editable={mode === 'pin' && retrySeconds === 0}
                   autoFocus={mode === 'pin'}
+                  showSoftInputOnFocus
                   keyboardType="number-pad"
                   returnKeyType="done"
                   secureTextEntry
