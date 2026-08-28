@@ -62,6 +62,35 @@ export const isRelicCommanderUrl = (value: unknown): boolean => {
   }
 };
 
+export const getRcTerminalSessionStateFromUrl = (
+  value: unknown,
+): boolean | null => {
+  if (!isRelicCommanderUrl(value) || typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    const normalizedUrl = new URL(value).href;
+    const pathWithQuery = normalizedUrl.slice(RC_TERMINAL_ORIGIN.length);
+    const pathname =
+      pathWithQuery.split(/[?#]/, 1)[0].replace(/\/+$/, '') || '/';
+    if (pathname === '/game' || pathname.startsWith('/game/')) {
+      return true;
+    }
+    if (
+      pathname === '/' ||
+      pathname === '/index' ||
+      pathname === '/login' ||
+      pathname === '/logout'
+    ) {
+      return false;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 const isInternalWebViewDocument = (value: unknown): boolean =>
   typeof value === 'string' &&
   /^(?:about:blank|about:srcdoc)(?:[?#]|$)/i.test(value);

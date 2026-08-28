@@ -4,6 +4,7 @@ import {
   Alert,
   Keyboard,
   Modal,
+  NativeModules,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,8 +32,13 @@ type DialogMode =
   | 'starting_pairing'
   | 'pairing'
   | 'pin'
+  | 'waiting_network'
   | 'authenticating'
   | 'error';
+
+const { WifiControlModule } = NativeModules;
+const WIFI_LOGIN_WAIT_TIMEOUT_MS = 15_000;
+const WIFI_LOGIN_POLL_INTERVAL_MS = 500;
 
 interface Props {
   visible: boolean;
@@ -74,9 +80,12 @@ export default function RcTerminalLoginDialog({
   const [retryUntil, setRetryUntil] = useState(0);
   const aliveRef = useRef(true);
   const pairingGenerationRef = useRef(0);
+  const pinInputRef = useRef<TextInput>(null);
+  const pendingPinRef = useRef<string | null>(null);
 
   const clearEphemeralState = useCallback(() => {
     pairingGenerationRef.current += 1;
+    pendingPinRef.current = null;
     setPairing(null);
     setPin('');
     setRetryUntil(0);
@@ -122,6 +131,7 @@ export default function RcTerminalLoginDialog({
     return () => {
       aliveRef.current = false;
       pairingGenerationRef.current += 1;
+      pendingPinRef.current = null;
     };
   }, []);
 
@@ -250,12 +260,78 @@ export default function RcTerminalLoginDialog({
     return () => clearInterval(timer);
   }, [retryUntil]);
 
+  useEffect(() => {
+    if (!visible || mode !== 'pin' || !association || retryUntil > Date.now()) {
+      return;
+    }
+
+    // Android Modal transitions can consume TextInput's initial autoFocus.
+    // Focus again once the PIN view is mounted and the fade has started.
+    const timer = setTimeout(() => pinInputRef.current?.focus(), 250);
+    return () => clearTimeout(timer);
+  }, [association, mode, retryUntil, visible]);
+
+  const waitForWifiConnection = useCallback(
+    async (generation: number): Promise<boolean> => {
+      if (!WifiControlModule?.getWifiInfo) {
+        return true;
+      }
+
+      const deadline = Date.now() + WIFI_LOGIN_WAIT_TIMEOUT_MS;
+      while (
+        aliveRef.current &&
+        pairingGenerationRef.current === generation &&
+        Date.now() < deadline
+      ) {
+        try {
+          const info = await WifiControlModule.getWifiInfo();
+          if (info?.isConnected && info?.hasInternet) {
+            return true;
+          }
+        } catch {
+          // The native Wi-Fi bridge may be temporarily unavailable while Android
+          // restores networking. Keep waiting within the same bounded window.
+        }
+
+        await new Promise<void>(resolve =>
+          setTimeout(resolve, WIFI_LOGIN_POLL_INTERVAL_MS),
+        );
+      }
+      return false;
+    },
+    [],
+  );
+
   const submitPin = async (): Promise<void> => {
-    if (!association || !/^\d{6,10}$/.test(pin) || retryUntil > Date.now()) {
+    if (
+      mode !== 'pin' ||
+      !association ||
+      !/^\d{6,10}$/.test(pin) ||
+      retryUntil > Date.now()
+    ) {
       return;
     }
     const generation = pairingGenerationRef.current;
-    const attemptPin = pin;
+    pendingPinRef.current = pin;
+    setPin('');
+    Keyboard.dismiss();
+    setMode('waiting_network');
+    setMessage('Waiting up to 15 seconds for Wi-Fi…');
+
+    const wifiReady = await waitForWifiConnection(generation);
+    if (pairingGenerationRef.current !== generation) return;
+    if (!wifiReady) {
+      pendingPinRef.current = null;
+      setMessage(
+        'Wi-Fi did not reconnect in time. Enter your PIN to try again.',
+      );
+      setMode('pin');
+      return;
+    }
+
+    const attemptPin = pendingPinRef.current;
+    pendingPinRef.current = null;
+    if (!attemptPin) return;
     setMode('authenticating');
     setMessage('Verifying Terminal identity…');
     try {
@@ -323,6 +399,7 @@ export default function RcTerminalLoginDialog({
         setMode('pin');
       }
     } finally {
+      pendingPinRef.current = null;
       setPin('');
     }
   };
@@ -359,6 +436,8 @@ export default function RcTerminalLoginDialog({
   const retrySeconds = Math.max(0, Math.ceil((retryUntil - Date.now()) / 1000));
   const isBusy = mode === 'loading' || mode === 'starting_pairing';
 
+  const showPinForm =
+    mode === 'pin' || mode === 'waiting_network' || mode === 'authenticating';
   return (
     <Modal
       visible={visible}
@@ -439,7 +518,7 @@ export default function RcTerminalLoginDialog({
               </View>
             )}
 
-            {(mode === 'pin' || mode === 'authenticating') && association && (
+            {showPinForm && association && (
               <View style={styles.pinLayout}>
                 <View style={styles.identityBadge}>
                   <MaterialCommunityIcons
@@ -458,11 +537,13 @@ export default function RcTerminalLoginDialog({
                 </View>
                 <Text style={styles.message}>{message}</Text>
                 <TextInput
+                  ref={pinInputRef}
                   accessibilityLabel="Relic Commander account PIN"
                   value={pin}
                   editable={mode === 'pin' && retrySeconds === 0}
                   autoFocus={mode === 'pin'}
                   keyboardType="number-pad"
+                  returnKeyType="done"
                   secureTextEntry
                   maxLength={10}
                   autoCorrect={false}
@@ -497,7 +578,7 @@ export default function RcTerminalLoginDialog({
                   ]}
                   onPress={submitPin}
                 >
-                  {mode === 'authenticating' ? (
+                  {mode === 'waiting_network' || mode === 'authenticating' ? (
                     <ActivityIndicator
                       size="small"
                       color={RC_THEME.colors.textInverse}
@@ -509,7 +590,11 @@ export default function RcTerminalLoginDialog({
                       color={RC_THEME.colors.textInverse}
                     />
                   )}
-                  <Text style={styles.primaryButtonText}>Access your game</Text>
+                  <Text style={styles.primaryButtonText}>
+                    {mode === 'waiting_network'
+                      ? 'Waiting for Wi-Fi…'
+                      : 'Access your game'}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   accessibilityRole="button"

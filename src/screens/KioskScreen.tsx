@@ -73,7 +73,10 @@ import { FORK_DEFAULTS } from '../config/forkDefaults';
 import { FORK_CAPABILITIES } from '../config/forkCapabilities';
 import { RC_THEME } from '../theme/relicCommanderTheme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { isRelicCommanderUrl } from '../utils/rcTerminalBridge';
+import {
+  getRcTerminalSessionStateFromUrl,
+  isRelicCommanderUrl,
+} from '../utils/rcTerminalBridge';
 import type { RcTerminalAssociation } from '../utils/rcTerminalAuth';
 
 const { HttpServerModule } = NativeModules;
@@ -127,6 +130,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
   >(null);
   const [terminalAssociation, setTerminalAssociation] =
     useState<RcTerminalAssociation | null>(null);
+  const [terminalSessionActive, setTerminalSessionActive] =
+    useState<boolean>(false);
   const terminalLoginPromptedRef = useRef(false);
   // #177 — Pause WebView audio/video when the page is hidden (screensaver / screen off / background)
   const [pauseWebMediaWhenHidden, setPauseWebMediaWhenHidden] =
@@ -3414,11 +3419,17 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
 
   const handleTerminalSessionTicket = async (ticket: string): Promise<void> => {
     setTerminalSessionErrorStatus(null);
-    await webViewRef.current?.postRcTerminalSession(ticket);
+    const webView = webViewRef.current;
+    if (!webView) {
+      throw new Error('The Relic Commander WebView is unavailable.');
+    }
+    await webView.postRcTerminalSession(ticket);
+    setTerminalSessionActive(true);
   };
 
   const handleTerminalSessionError = (statusCode: number): void => {
     webViewRef.current?.navigateToRelicCommanderHome();
+    setTerminalSessionActive(false);
     setTerminalSessionErrorStatus(statusCode);
     setTerminalLoginVisible(true);
   };
@@ -3515,6 +3526,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
               }}
               onPageNavigated={(navUrl: string) => {
                 currentWebViewUrlRef.current = navUrl;
+                const sessionState = getRcTerminalSessionStateFromUrl(navUrl);
+                if (sessionState !== null) {
+                  setTerminalSessionActive(sessionState);
+                }
                 // In dashboard mode (viewing a tile), always reset the inactivity timer on
                 // any page navigation so self-refreshing pages don't trigger an unexpected
                 // return to the grid. For non-dashboard mode, respect the user setting.
@@ -3647,6 +3662,30 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
             >
               <MaterialCommunityIcons name="menu" size={24} color="#FFFFFF" />
             </TouchableOpacity>
+
+            {!terminalSessionActive &&
+              !terminalLoginVisible &&
+              isRelicCommanderUrl(url) && (
+                <TouchableOpacity
+                  testID="kiosk-terminal-login-button"
+                  accessibilityRole="button"
+                  accessibilityLabel="Open Terminal access"
+                  activeOpacity={0.9}
+                  hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+                  style={[
+                    styles.kioskSettingsButton,
+                    styles.kioskTerminalLoginButton,
+                    { right: publicControlsRight + 56 },
+                  ]}
+                  onPress={handleOpenTerminalAccount}
+                >
+                  <MaterialCommunityIcons
+                    name="key-variant"
+                    size={22}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                </TouchableOpacity>
+              )}
           </>
         )}
 
@@ -3887,6 +3926,12 @@ const styles = StyleSheet.create({
   kioskSettingsButtonRightEdge: {
     top: '50%',
     transform: [{ translateY: -22 }],
+  },
+  kioskTerminalLoginButton: {
+    top: '50%',
+    transform: [{ translateY: -22 }],
+    borderColor: RC_THEME.colors.primary,
+    backgroundColor: RC_THEME.colors.surfaceCardDeep,
   },
   webBackButton: {
     position: 'absolute',

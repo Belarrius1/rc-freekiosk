@@ -260,6 +260,12 @@ describe('RC Terminal tablet layout', () => {
     const batteryWarning = readProjectFile(
       'src/components/KioskBatteryWarning.tsx',
     );
+    const terminalLogin = readProjectFile(
+      'src/components/RcTerminalLoginDialog.tsx',
+    );
+    const wifiControl = readProjectFile(
+      'android/app/src/main/java/com/freekiosk/WifiControlModule.kt',
+    );
 
     expect(player).toContain('RC_TERMINAL_MUSIC_PLAYER');
     expect(player).toContain('mediaPlaybackRequiresUserAction={false}');
@@ -299,6 +305,20 @@ describe('RC Terminal tablet layout', () => {
     expect(kiosk).toContain('styles.kioskMusicButtonRightEdge');
     expect(kiosk).toContain('styles.kioskSettingsButtonRightEdge');
     expect(kiosk).toContain('name="menu"');
+    expect(kiosk).toContain('kiosk-terminal-login-button');
+    expect(kiosk).toContain('!terminalSessionActive &&');
+    expect(kiosk).toContain('name="key-variant"');
+    expect(terminalLogin).toContain('pinInputRef.current?.focus()');
+    expect(terminalLogin).toContain('returnKeyType="done"');
+    expect(terminalLogin).toContain('WIFI_LOGIN_WAIT_TIMEOUT_MS = 15_000');
+    expect(terminalLogin).toContain('info?.isConnected && info?.hasInternet');
+    expect(terminalLogin).toContain('pendingPinRef.current = null');
+    expect(wifiControl).toContain(
+      'NetworkCapabilities.NET_CAPABILITY_VALIDATED',
+    );
+    expect(wifiControl).toContain(
+      'result.putBoolean("hasInternet", hasInternet)',
+    );
     expect(kiosk).toContain("top: '50%'");
     expect(kiosk).toContain('right: publicControlsRight');
     expect(kiosk).toContain('<KioskBatteryWarning');

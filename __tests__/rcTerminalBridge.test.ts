@@ -1,6 +1,7 @@
 import {
   buildRcTerminalCapabilities,
   buildRcTerminalCapabilitiesResponseScript,
+  getRcTerminalSessionStateFromUrl,
   isRcTerminalCapabilitiesRequest,
   isRcMusicPlayerNavigationAllowed,
   isRelicCommanderMusicPlayerUrl,
@@ -43,6 +44,27 @@ describe('Relic Commander terminal capabilities bridge', () => {
       false,
     );
     expect(isRelicCommanderUrl('not a url')).toBe(false);
+  });
+
+  it('derives the known Terminal session state from main RC routes only', () => {
+    expect(
+      getRcTerminalSessionStateFromUrl('https://reliccommander.com/game?id=1'),
+    ).toBe(true);
+    expect(
+      getRcTerminalSessionStateFromUrl('https://reliccommander.com/game/map'),
+    ).toBe(true);
+    expect(
+      getRcTerminalSessionStateFromUrl('https://reliccommander.com/login'),
+    ).toBe(false);
+    expect(
+      getRcTerminalSessionStateFromUrl('https://reliccommander.com/'),
+    ).toBe(false);
+    expect(
+      getRcTerminalSessionStateFromUrl('https://reliccommander.com/news'),
+    ).toBeNull();
+    expect(
+      getRcTerminalSessionStateFromUrl('https://example.com/game'),
+    ).toBeNull();
   });
 
   it('accepts only the protocol 1 capabilities request', () => {

@@ -59,15 +59,24 @@ class WifiControlModule(private val reactContext: ReactApplicationContext) :
             val isEnabled = wifiManager.isWifiEnabled
             result.putBoolean("isEnabled", isEnabled)
 
+            var hasInternet = false
             val isConnected = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val net = connectivityManager.activeNetwork
                 val caps = connectivityManager.getNetworkCapabilities(net)
-                caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                val connected = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+                hasInternet = connected &&
+                    caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                    caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+                connected
             } else {
                 @Suppress("DEPRECATION")
-                connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)?.isConnected == true
+                val connected = connectivityManager
+                    .getNetworkInfo(ConnectivityManager.TYPE_WIFI)?.isConnected == true
+                hasInternet = connected
+                connected
             }
             result.putBoolean("isConnected", isConnected)
+            result.putBoolean("hasInternet", hasInternet)
 
             if (isConnected) {
                 @Suppress("DEPRECATION")
