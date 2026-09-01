@@ -9,14 +9,18 @@ import {
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import ScreenTimeoutModule from '../utils/ScreenTimeoutModule';
+import KioskModule from '../utils/KioskModule';
+import { StorageService } from '../utils/storage';
 import { RC_THEME } from '../theme/relicCommanderTheme';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
+  onKeepScreenOnChange?: (enabled: boolean) => void;
 }
 
 const TIMEOUT_PRESETS = [
+  { label: 'Disabled', value: 0 },
   { label: '30 sec', value: 30_000 },
   { label: '1 min', value: 60_000 },
   { label: '2 min', value: 120_000 },
@@ -29,7 +33,11 @@ function timeoutLabel(timeoutMs: number | null): string {
   return preset?.label ?? 'System default';
 }
 
-export default function ScreenTimeoutDialog({ visible, onClose }: Props) {
+export default function ScreenTimeoutDialog({
+  visible,
+  onClose,
+  onKeepScreenOnChange,
+}: Props) {
   const [timeoutMs, setTimeoutMs] = useState<number | null>(null);
   const [available, setAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -43,11 +51,14 @@ export default function ScreenTimeoutDialog({ visible, onClose }: Props) {
 
     (async () => {
       try {
-        const canChange = await ScreenTimeoutModule.isAvailable();
-        const current = await ScreenTimeoutModule.getTimeout();
+        const [canChange, current, keepScreenOn] = await Promise.all([
+          ScreenTimeoutModule.isAvailable(),
+          ScreenTimeoutModule.getTimeout(),
+          StorageService.getKeepScreenOn(),
+        ]);
         if (!active) return;
         setAvailable(canChange);
-        setTimeoutMs(Math.round(current));
+        setTimeoutMs(keepScreenOn ? 0 : Math.round(current));
         setMessage(
           canChange
             ? 'Choose when the inactive screen turns off.'
@@ -68,10 +79,22 @@ export default function ScreenTimeoutDialog({ visible, onClose }: Props) {
   }, [visible]);
 
   const applyTimeout = async (nextTimeoutMs: number): Promise<void> => {
-    if (!available || busy) return;
+    if ((!available && nextTimeoutMs !== 0) || busy) return;
     setBusy(true);
     try {
+      if (nextTimeoutMs === 0) {
+        await KioskModule.setKeepScreenOn(true);
+        await StorageService.saveKeepScreenOn(true);
+        onKeepScreenOnChange?.(true);
+        setTimeoutMs(0);
+        setMessage('Screen sleep disabled. The Terminal will stay on.');
+        return;
+      }
+
       const applied = await ScreenTimeoutModule.setTimeout(nextTimeoutMs);
+      await KioskModule.setKeepScreenOn(false);
+      await StorageService.saveKeepScreenOn(false);
+      onKeepScreenOnChange?.(false);
       setTimeoutMs(Math.round(applied));
       setMessage(`Screen sleep set to ${timeoutLabel(Math.round(applied))}.`);
     } catch (error) {
@@ -137,17 +160,18 @@ export default function ScreenTimeoutDialog({ visible, onClose }: Props) {
           <View style={styles.presets}>
             {TIMEOUT_PRESETS.map(preset => {
               const selected = timeoutMs === preset.value;
+              const disabled = busy || (!available && preset.value !== 0);
               return (
                 <TouchableOpacity
                   key={preset.value}
                   accessibilityRole="button"
                   accessibilityLabel={`Set screen sleep to ${preset.label}`}
-                  disabled={!available || busy}
+                  disabled={disabled}
                   activeOpacity={0.75}
                   style={[
                     styles.presetButton,
                     selected && styles.presetButtonActive,
-                    (!available || busy) && styles.presetButtonDisabled,
+                    disabled && styles.presetButtonDisabled,
                   ]}
                   onPress={async () => {
                     await applyTimeout(preset.value);
@@ -167,7 +191,9 @@ export default function ScreenTimeoutDialog({ visible, onClose }: Props) {
           </View>
 
           <Text style={styles.hint}>
-            The timer resets whenever the player touches the screen.
+            {timeoutMs === 0
+              ? 'The Terminal will stay on until another sleep timer is selected.'
+              : 'The timer resets whenever the player touches the screen.'}
           </Text>
         </TouchableOpacity>
       </TouchableOpacity>

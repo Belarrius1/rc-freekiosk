@@ -118,6 +118,7 @@ export default function KioskQuickSettingsDialog({
   const [flashlightBusy, setFlashlightBusy] = useState(false);
   const updateCheckInFlightRef = useRef(false);
   const updateInstallationInFlightRef = useRef(false);
+  const batteryLevelRef = useRef<number | null>(null);
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
 
@@ -127,6 +128,17 @@ export default function KioskQuickSettingsDialog({
       updateCheckInFlightRef.current ||
       updateInstallationInFlightRef.current
     ) {
+      return;
+    }
+    const batteryLevel = batteryLevelRef.current;
+    if (
+      batteryLevel !== null &&
+      batteryLevel < MIN_PUBLIC_UPDATE_BATTERY_PERCENT
+    ) {
+      setUpdateStatus('blocked');
+      setUpdateMessage(
+        `Battery must be at least ${MIN_PUBLIC_UPDATE_BATTERY_PERCENT}% to check for updates. Current level: ${batteryLevel}%.`,
+      );
       return;
     }
 
@@ -169,14 +181,16 @@ export default function KioskQuickSettingsDialog({
       try {
         const info = await SystemInfoModule?.getSystemInfo?.();
         if (active && info) {
+          const batteryLevel =
+            typeof info.battery?.level === 'number' &&
+            info.battery.level >= 0 &&
+            info.battery.level <= 100
+              ? info.battery.level
+              : null;
+          batteryLevelRef.current = batteryLevel;
           setStatus(current => ({
             ...current,
-            batteryLevel:
-              typeof info.battery?.level === 'number' &&
-              info.battery.level >= 0 &&
-              info.battery.level <= 100
-                ? info.battery.level
-                : null,
+            batteryLevel,
             isCharging: Boolean(info.battery?.isCharging),
             wifiConnected: Boolean(info.wifi?.isConnected),
             wifiSsid: info.wifi?.ssid || '',
@@ -202,8 +216,12 @@ export default function KioskQuickSettingsDialog({
       }
     };
 
-    refreshQuickStatus();
-    handleCheckForUpdates();
+    (async () => {
+      await refreshQuickStatus();
+      if (active) {
+        await handleCheckForUpdates();
+      }
+    })();
     const interval = setInterval(refreshQuickStatus, 5000);
     return () => {
       active = false;
@@ -265,6 +283,10 @@ export default function KioskQuickSettingsDialog({
   const updateCanInstall =
     updateInfo !== null &&
     (updateStatus === 'available' || updateStatus === 'blocked');
+  const updateBatteryTooLow =
+    status.batteryLevel !== null &&
+    status.batteryLevel < MIN_PUBLIC_UPDATE_BATTERY_PERCENT;
+  const updateActionDisabled = updateBusy || updateBatteryTooLow;
   const availableVersionLabel = updateInfo
     ? versionLabel(updateInfo.version)
     : updateStatus === 'checking'
@@ -652,11 +674,11 @@ export default function KioskQuickSettingsDialog({
                         ? `Install ${versionLabel(updateInfo?.version ?? '')}`
                         : 'Check for updates'
                     }
-                    disabled={updateBusy}
+                    disabled={updateActionDisabled}
                     activeOpacity={0.75}
                     style={[
                       styles.updateButton,
-                      updateBusy && styles.updateButtonDisabled,
+                      updateActionDisabled && styles.updateButtonDisabled,
                     ]}
                     onPress={
                       updateCanInstall

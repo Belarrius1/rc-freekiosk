@@ -3743,6 +3743,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       <ScreenTimeoutDialog
         visible={screenTimeoutDialogVisible}
         onClose={() => handleCloseDeviceDialog(setScreenTimeoutDialogVisible)}
+        onKeepScreenOnChange={enabled => {
+          setKeepScreenOn(enabled);
+          keepScreenOnRef.current = enabled;
+        }}
       />
 
       {/* Motion Detector - Active during pre-check OR when screensaver is ON (only if screen is focused) */}

@@ -146,8 +146,9 @@ class MainActivity : ReactActivity() {
       // of relying only on SCREEN_ON/window-focus callbacks. Do not interfere with the IME;
       // closing it will dispatch fresh insets and trigger recovery if bars remain visible.
       val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
-      val systemBarsVisible = insets.isVisible(WindowInsetsCompat.Type.systemBars())
-      if (systemBarsVisible && !imeVisible) {
+      val navigationBarVisible = insets.isVisible(WindowInsetsCompat.Type.navigationBars())
+      val statusBarVisible = insets.isVisible(WindowInsetsCompat.Type.statusBars())
+      if ((navigationBarVisible || statusBarVisible) && !imeVisible) {
         immersiveRecoveryHandler.removeCallbacks(systemBarsRecoveryRunnable)
         immersiveRecoveryHandler.postDelayed(systemBarsRecoveryRunnable, 200L)
       }

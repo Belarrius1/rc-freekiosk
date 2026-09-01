@@ -183,6 +183,9 @@ describe('RC Terminal tablet layout', () => {
     expect(quickSettings).toContain('>Installed </Text>');
     expect(quickSettings).toContain('>Available </Text>');
     expect(quickSettings).toContain('isBatterySafeForPublicUpdate');
+    expect(quickSettings).toContain('updateBatteryTooLow');
+    expect(quickSettings).toContain('disabled={updateActionDisabled}');
+    expect(quickSettings).toContain('to check for updates. Current level:');
     expect(quickSettings).toContain('KioskModule.isDeviceOwner()');
     expect(quickSettings).toContain('isTrustedRcUpdateUrl');
     expect(quickSettings).toContain('downloadAndInstallSilently');
@@ -206,7 +209,11 @@ describe('RC Terminal tablet layout', () => {
     expect(quickSettings).toContain('styles.settingButtonLandscape');
     expect(quickSettings).toContain('maxWidth: 1080');
     expect(screenTimeout).toContain("{ label: '30 sec', value: 30_000 }");
+    expect(screenTimeout).toContain("{ label: 'Disabled', value: 0 }");
     expect(screenTimeout).toContain("{ label: '10 min', value: 600_000 }");
+    expect(screenTimeout).toContain('KioskModule.setKeepScreenOn(true)');
+    expect(screenTimeout).toContain('StorageService.saveKeepScreenOn(true)');
+    expect(screenTimeout).toContain('KioskModule.setKeepScreenOn(false)');
     expect(nativeScreenTimeout).toContain('Settings.System.SCREEN_OFF_TIMEOUT');
     expect(nativeScreenTimeout).toContain('ALLOWED_TIMEOUTS_MS');
     expect(nativeScreenTimeout).toContain(
@@ -402,8 +409,12 @@ describe('Kiosk wake-up hardening', () => {
     );
     expect(activity).toContain('window.decorView.hasWindowFocus()');
     expect(activity).toContain(
-      'insets.isVisible(WindowInsetsCompat.Type.systemBars())',
+      'insets.isVisible(WindowInsetsCompat.Type.navigationBars())',
     );
+    expect(activity).toContain(
+      'insets.isVisible(WindowInsetsCompat.Type.statusBars())',
+    );
+    expect(activity).not.toContain('insets.isVisible(WindowInsetsCompat.Type.systemBars())');
     expect(activity).toContain(
       'immersiveRecoveryHandler.removeCallbacksAndMessages(null)',
     );
