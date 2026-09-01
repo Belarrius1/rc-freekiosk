@@ -172,6 +172,12 @@ describe('RC Terminal tablet layout', () => {
     const wifi = readProjectFile('src/components/WifiDialog.tsx');
     const bluetooth = readProjectFile('src/components/BluetoothDialog.tsx');
     const pin = readProjectFile('src/components/PinInput.tsx');
+    const kiosk = readProjectFile('src/screens/KioskScreen.tsx');
+    const terminalStatusIcons = readProjectFile(
+      'src/components/KioskTerminalStatusIcons.tsx',
+    );
+    const storage = readProjectFile('src/utils/storage.ts');
+    const backup = readProjectFile('src/utils/BackupService.ts');
 
     expect(quickSettings).toContain('dialogBodyLandscape');
     expect(quickSettings).toContain('RELIC COMMANDER TERMINAL -');
@@ -180,11 +186,26 @@ describe('RC Terminal tablet layout', () => {
     expect(quickSettings).toContain('handleCheckForUpdates();');
     expect(quickSettings).toContain('updateCheckInFlightRef');
     expect(quickSettings).toContain('styles.updateVersionsInline');
-    expect(quickSettings).toContain('>Installed </Text>');
-    expect(quickSettings).toContain('>Available </Text>');
+    expect(quickSettings).toContain("Installed{' '}");
+    expect(quickSettings).toContain("Available{' '}");
     expect(quickSettings).toContain('isBatterySafeForPublicUpdate');
     expect(quickSettings).toContain('updateBatteryTooLow');
     expect(quickSettings).toContain('disabled={updateActionDisabled}');
+    expect(quickSettings).toContain('Battery level must be above 50%');
+    expect(quickSettings).toContain('Show Terminal icons');
+    expect(quickSettings).toContain('terminalControlsRow');
+    expect(kiosk).toContain('<KioskTerminalStatusIcons');
+    expect(kiosk).toContain(
+      'terminalIconsEnabled={terminalStatusIconsEnabled}',
+    );
+    expect(terminalStatusIcons).toContain('pointerEvents="none"');
+    expect(terminalStatusIcons).toContain("'wifi-strength-4'");
+    expect(terminalStatusIcons).toContain(
+      'BrightnessModule.getBrightnessLevel()',
+    );
+    expect(storage).toContain('TERMINAL_STATUS_ICONS_ENABLED');
+    expect(storage).toContain('value === null ? false');
+    expect(backup).toContain("'@kiosk_terminal_status_icons_enabled'");
     expect(quickSettings).toContain('to check for updates. Current level:');
     expect(quickSettings).toContain('KioskModule.isDeviceOwner()');
     expect(quickSettings).toContain('isTrustedRcUpdateUrl');
@@ -201,9 +222,7 @@ describe('RC Terminal tablet layout', () => {
     expect(nativeUpdater).toContain('if (silentOnly)');
     expect(nativeUpdater).toContain('refusing to open system installation UI');
     expect(webView).toContain('errorCardLandscape');
-    expect(webView).toMatch(
-      /webview:\s*\{[^}]*backgroundColor: '#000'/,
-    );
+    expect(webView).toMatch(/webview:\s*\{[^}]*backgroundColor: '#000'/);
     expect(quickSettings).toContain("{ key: 'sleep', label: 'Screen sleep'");
     expect(quickSettings).toContain('FlashlightModule.setEnabled');
     expect(quickSettings).toContain('styles.settingButtonLandscape');
@@ -331,9 +350,7 @@ describe('RC Terminal tablet layout', () => {
     expect(kiosk).toContain("top: '50%'");
     expect(kiosk).toContain('right: publicControlsRight');
     expect(kiosk).toContain('<KioskBatteryWarning');
-    expect(batteryWarning).toContain(
-      'BATTERY_BANNER_DURATION_MS = 10_000',
-    );
+    expect(batteryWarning).toContain('BATTERY_BANNER_DURATION_MS = 10_000');
     expect(batteryWarning).toContain(
       "name={banner.critical ? 'battery-outline' : 'battery-20'}",
     );
@@ -377,7 +394,9 @@ describe('RC Terminal quick login hardening', () => {
     expect(nativeKiosk).toContain('ReactFindViewUtil.findView(');
     expect(nativeKiosk).toContain('relicCommanderWebViewNativeId');
     expect(nativeKiosk).toContain('getUIManagerForReactTag');
-    expect(nativeKiosk).toContain('fun showKeyboard(tag: Int, promise: Promise)');
+    expect(nativeKiosk).toContain(
+      'fun showKeyboard(tag: Int, promise: Promise)',
+    );
     expect(nativeKiosk).toContain('imm.restartInput(inputView)');
     expect(nativeKiosk).toContain('imm.showSoftInput(inputView');
     expect(nativeKiosk).toContain('longArrayOf(0L, 150L, 400L)');
@@ -401,9 +420,7 @@ describe('Kiosk wake-up hardening', () => {
 
     expect(screenReceiver).toContain('onScreenOn?.invoke()');
     expect(activity).toContain('restoreImmersiveModeAfterScreenOn()');
-    expect(activity).toContain(
-      'longArrayOf(0L, 300L, 1000L, 2000L, 3000L)',
-    );
+    expect(activity).toContain('longArrayOf(0L, 300L, 1000L, 2000L, 3000L)');
     expect(activity).toContain(
       'private val immersiveRecoveryHandler = Handler(Looper.getMainLooper())',
     );
@@ -414,7 +431,9 @@ describe('Kiosk wake-up hardening', () => {
     expect(activity).toContain(
       'insets.isVisible(WindowInsetsCompat.Type.statusBars())',
     );
-    expect(activity).not.toContain('insets.isVisible(WindowInsetsCompat.Type.systemBars())');
+    expect(activity).not.toContain(
+      'insets.isVisible(WindowInsetsCompat.Type.systemBars())',
+    );
     expect(activity).toContain(
       'immersiveRecoveryHandler.removeCallbacksAndMessages(null)',
     );
@@ -443,16 +462,22 @@ describe('Kiosk wake-up hardening', () => {
     expect(controller).toContain('private const val EXPERIMENT_ENABLED = true');
     expect(controller).toContain('PowerManager.PARTIAL_WAKE_LOCK');
     expect(controller).toContain('createDeviceProtectedStorageContext()');
-    expect(controller).toContain('putBoolean(KEY_DISABLED_FOR_SLEEP, true).commit()');
+    expect(controller).toContain(
+      'putBoolean(KEY_DISABLED_FOR_SLEEP, true).commit()',
+    );
     expect(controller).toContain('wifiManager.setWifiEnabled(false)');
     expect(controller).toContain('wifiManager.setWifiEnabled(true)');
     expect(controller).toContain('dpm.isDeviceOwnerApp(context.packageName)');
-    expect(screenReceiver).toContain('SleepWifiController.onScreenOff(context)');
+    expect(screenReceiver).toContain(
+      'SleepWifiController.onScreenOff(context)',
+    );
     expect(screenReceiver).toContain('SleepWifiController.onScreenOn(context)');
     expect(overlayService).toContain(
       'SleepWifiController.onScreenOff(this@OverlayService)',
     );
-    expect(bootReceiver).toContain('SleepWifiController.restoreAfterBoot(context)');
+    expect(bootReceiver).toContain(
+      'SleepWifiController.restoreAfterBoot(context)',
+    );
     expect(activity).toContain(
       'SleepWifiController.restoreIfInteractive(applicationContext)',
     );

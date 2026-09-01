@@ -59,6 +59,7 @@ import BluetoothDialog from '../components/BluetoothDialog';
 import AudioOutputDialog from '../components/AudioOutputDialog';
 import BrightnessDialog from '../components/BrightnessDialog';
 import ScreenTimeoutDialog from '../components/ScreenTimeoutDialog';
+import KioskTerminalStatusIcons from '../components/KioskTerminalStatusIcons';
 import KioskBatteryWarning from '../components/KioskBatteryWarning';
 import KioskQuickSettingsDialog, {
   KioskQuickSetting,
@@ -173,6 +174,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     'dark',
   );
   const timerRef = useRef<any>(null);
+  const [terminalStatusIconsEnabled, setTerminalStatusIconsEnabled] =
+    useState(false);
 
   // External app states
   const [displayMode, setDisplayMode] = useState<
@@ -1918,8 +1921,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         FORK_CAPABILITIES.cameraCapture &&
         bool(K.SCREENSAVER_MOTION_ENABLED, false);
       const savedMotionAlwaysOn =
-        FORK_CAPABILITIES.cameraCapture &&
-        bool(K.MQTT_MOTION_ALWAYS_ON, false);
+        FORK_CAPABILITIES.cameraCapture && bool(K.MQTT_MOTION_ALWAYS_ON, false);
       const savedMotionCameraPosition = (str(K.MOTION_CAMERA_POSITION) ??
         'front') as 'front' | 'back';
       const savedMotionSensitivity = (str(K.SCREENSAVER_MOTION_SENSITIVITY) ??
@@ -1945,6 +1947,10 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       const savedStatusBarTheme = (
         str(K.STATUS_BAR_THEME) === 'light' ? 'light' : 'dark'
       ) as 'dark' | 'light';
+      const savedTerminalStatusIconsEnabled = bool(
+        K.TERMINAL_STATUS_ICONS_ENABLED,
+        false,
+      );
 
       if (savedUrl) setUrl(savedUrl);
       setAutoReload(savedAutoReload);
@@ -1986,6 +1992,7 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
       setShowVolume(savedShowVolume);
       setShowTime(savedShowTime);
       setStatusBarTheme(savedStatusBarTheme);
+      setTerminalStatusIconsEnabled(savedTerminalStatusIconsEnabled);
 
       // Load external app settings
       const savedDisplayMode = (str(K.DISPLAY_MODE) ?? 'webview') as
@@ -3457,6 +3464,11 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
     void StorageService.saveHideMusicIcon(hidden);
     resetTimer();
   };
+  const handleTerminalStatusIconsChange = (enabled: boolean): void => {
+    setTerminalStatusIconsEnabled(enabled);
+    void StorageService.saveTerminalStatusIconsEnabled(enabled);
+    resetTimer();
+  };
 
   const handleSelectQuickSetting = (setting: KioskQuickSetting): void => {
     setQuickSettingsDialogVisible(false);
@@ -3689,11 +3701,19 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
           </>
         )}
 
+      {displayMode === 'webview' &&
+        terminalStatusIconsEnabled &&
+        !isScreensaverActive &&
+        !isScheduledSleep && (
+          <KioskTerminalStatusIcons
+            top={Math.max(safeAreaInsets.top, 12)}
+            right={publicControlsRight}
+          />
+        )}
+
       <KioskBatteryWarning
         enabled={
-          displayMode === 'webview' &&
-          !isScreensaverActive &&
-          !isScheduledSleep
+          displayMode === 'webview' && !isScreensaverActive && !isScheduledSleep
         }
         right={publicControlsRight}
       />
@@ -3705,6 +3725,8 @@ const KioskScreen: React.FC<KioskScreenProps> = ({ navigation }) => {
         onMusic={handleOpenMusicPlayer}
         onRelicCommanderHome={handleRelicCommanderHome}
         onTerminalAccount={handleOpenTerminalAccount}
+        terminalIconsEnabled={terminalStatusIconsEnabled}
+        onTerminalIconsEnabledChange={handleTerminalStatusIconsChange}
         terminalId={terminalAssociation?.terminalId}
       />
       <RcTerminalLoginDialog

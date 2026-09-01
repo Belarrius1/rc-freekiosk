@@ -7,6 +7,7 @@ import {
   NativeModules,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   useWindowDimensions,
@@ -54,6 +55,8 @@ interface Props {
   onMusic: () => void;
   onRelicCommanderHome: () => void;
   onTerminalAccount: () => void;
+  terminalIconsEnabled: boolean;
+  onTerminalIconsEnabledChange: (enabled: boolean) => void;
   terminalId?: string | null;
 }
 
@@ -100,6 +103,8 @@ export default function KioskQuickSettingsDialog({
   onMusic,
   onRelicCommanderHome,
   onTerminalAccount,
+  terminalIconsEnabled,
+  onTerminalIconsEnabledChange,
   terminalId,
 }: Props) {
   const [status, setStatus] = useState<QuickStatus>(EMPTY_STATUS);
@@ -387,7 +392,10 @@ export default function KioskQuickSettingsDialog({
       setFlashlightOn(enabled);
     } catch (error) {
       console.warn('[QuickSettings] flashlight toggle error:', error);
-      Alert.alert('Nightlight', 'The nightlight is unavailable on this device.');
+      Alert.alert(
+        'Nightlight',
+        'The nightlight is unavailable on this device.',
+      );
     } finally {
       setFlashlightBusy(false);
     }
@@ -468,9 +476,9 @@ export default function KioskQuickSettingsDialog({
                   <Text style={styles.statusValue}>{batteryLabel}</Text>
                 </View>
                 <View style={styles.statusItem}>
-                      <MaterialCommunityIcons
-                        name={wifiIcon}
-                        size={20}
+                  <MaterialCommunityIcons
+                    name={wifiIcon}
+                    size={20}
                     color={
                       status.wifiConnected
                         ? RC_THEME.colors.success
@@ -557,30 +565,69 @@ export default function KioskQuickSettingsDialog({
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Open Terminal account login"
-                activeOpacity={0.75}
-                style={styles.terminalAccountButton}
-                onPress={onTerminalAccount}
+              <View
+                style={[
+                  styles.terminalControlsRow,
+                  !isLandscape && styles.terminalControlsRowPortrait,
+                ]}
               >
-                <MaterialCommunityIcons
-                  name={terminalId ? 'shield-account' : 'shield-key-outline'}
-                  size={26}
-                  color={RC_THEME.colors.accentBright}
-                />
-                <View style={styles.terminalAccountText}>
-                  <Text style={styles.actionButtonLabel}>Terminal Account</Text>
-                  <Text style={styles.terminalAccountStatus}>
-                    {terminalId || 'Pair or sign in to Relic Commander'}
-                  </Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Open Terminal account login"
+                  activeOpacity={0.75}
+                  style={styles.terminalAccountButton}
+                  onPress={onTerminalAccount}
+                >
+                  <MaterialCommunityIcons
+                    name={terminalId ? 'shield-account' : 'shield-key-outline'}
+                    size={26}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                  <View style={styles.terminalAccountText}>
+                    <Text style={styles.actionButtonLabel}>
+                      Terminal Account
+                    </Text>
+                    <Text style={styles.terminalAccountStatus}>
+                      {terminalId || 'Pair or sign in to Relic Commander'}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={24}
+                    color={RC_THEME.colors.textMuted}
+                  />
+                </TouchableOpacity>
+
+                <View style={styles.terminalIconsControl}>
+                  <MaterialCommunityIcons
+                    name="monitor-eye"
+                    size={25}
+                    color={RC_THEME.colors.accentBright}
+                  />
+                  <View style={styles.terminalAccountText}>
+                    <Text style={styles.actionButtonLabel}>
+                      Show Terminal icons
+                    </Text>
+                    <Text style={styles.terminalAccountStatus}>
+                      Battery, Wi-Fi &amp; brightness
+                    </Text>
+                  </View>
+                  <Switch
+                    accessibilityLabel="Show Terminal icons"
+                    value={terminalIconsEnabled}
+                    trackColor={{
+                      false: RC_THEME.colors.surfaceElevated,
+                      true: RC_THEME.colors.primaryPressed,
+                    }}
+                    thumbColor={
+                      terminalIconsEnabled
+                        ? RC_THEME.colors.accentBright
+                        : RC_THEME.colors.textMuted
+                    }
+                    onValueChange={onTerminalIconsEnabledChange}
+                  />
                 </View>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={24}
-                  color={RC_THEME.colors.textMuted}
-                />
-              </TouchableOpacity>
+              </View>
 
               <View style={styles.actionRow}>
                 <TouchableOpacity
@@ -642,7 +689,9 @@ export default function KioskQuickSettingsDialog({
                       <Text style={styles.updateMessage}>{updateMessage}</Text>
                       <View style={styles.updateVersionsInline}>
                         <Text style={styles.updateVersionInlineText}>
-                          <Text style={styles.updateVersionLabel}>Installed </Text>
+                          <Text style={styles.updateVersionLabel}>
+                            Installed{' '}
+                          </Text>
                           <Text style={styles.updateVersionValue}>
                             {displayedVersion}
                           </Text>
@@ -653,7 +702,9 @@ export default function KioskQuickSettingsDialog({
                           color={RC_THEME.colors.textMuted}
                         />
                         <Text style={styles.updateVersionInlineText}>
-                          <Text style={styles.updateVersionLabel}>Available </Text>
+                          <Text style={styles.updateVersionLabel}>
+                            Available{' '}
+                          </Text>
                           <Text
                             style={[
                               styles.updateVersionValue,
@@ -670,7 +721,9 @@ export default function KioskQuickSettingsDialog({
                   <TouchableOpacity
                     accessibilityRole="button"
                     accessibilityLabel={
-                      updateCanInstall
+                      updateBatteryTooLow
+                        ? 'Battery level must be above 50%'
+                        : updateCanInstall
                         ? `Install ${versionLabel(updateInfo?.version ?? '')}`
                         : 'Check for updates'
                     }
@@ -693,13 +746,21 @@ export default function KioskQuickSettingsDialog({
                       />
                     ) : (
                       <MaterialCommunityIcons
-                        name={updateCanInstall ? 'download' : 'magnify'}
+                        name={
+                          updateBatteryTooLow
+                            ? 'battery-alert'
+                            : updateCanInstall
+                            ? 'download'
+                            : 'magnify'
+                        }
                         size={20}
                         color={RC_THEME.colors.textInverse}
                       />
                     )}
-                    <Text style={styles.updateButtonText}>
-                      {updateCanInstall
+                    <Text style={styles.updateButtonText} numberOfLines={2}>
+                      {updateBatteryTooLow
+                        ? 'Battery level must be above 50%'
+                        : updateCanInstall
                         ? `Install ${versionLabel(updateInfo?.version ?? '')}`
                         : updateStatus === 'up_to_date'
                         ? 'Check again'
@@ -891,15 +952,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  terminalAccountButton: {
-    minHeight: 62,
+  terminalControlsRow: {
     marginTop: 12,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  terminalControlsRowPortrait: {
+    flexDirection: 'column',
+  },
+  terminalAccountButton: {
+    flex: 1,
+    minHeight: 62,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
     borderColor: RC_THEME.colors.primary,
+    borderRadius: RC_THEME.radius.medium,
+    backgroundColor: RC_THEME.colors.surfaceCardDeep,
+  },
+  terminalIconsControl: {
+    flex: 1,
+    minHeight: 62,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.borderStrong,
     borderRadius: RC_THEME.radius.medium,
     backgroundColor: RC_THEME.colors.surfaceCardDeep,
   },
@@ -991,6 +1072,7 @@ const styles = StyleSheet.create({
   updateButton: {
     minHeight: 42,
     marginTop: 11,
+    paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -999,13 +1081,16 @@ const styles = StyleSheet.create({
     backgroundColor: RC_THEME.colors.primary,
   },
   updateButtonDisabled: {
-    opacity: 0.6,
+    borderWidth: 1,
+    borderColor: RC_THEME.colors.textMuted,
+    backgroundColor: RC_THEME.colors.surfaceElevated,
   },
   updateButtonText: {
     color: RC_THEME.colors.textInverse,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
+    textAlign: 'center',
     textTransform: 'uppercase',
   },
   updateSafetyText: {

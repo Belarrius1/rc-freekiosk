@@ -37,6 +37,7 @@ const BACKUP_KEYS = [
   '@kiosk_status_bar_show_bluetooth',
   '@kiosk_status_bar_show_volume',
   '@kiosk_status_bar_show_time',
+  '@kiosk_terminal_status_icons_enabled',
   '@kiosk_external_app_test_mode',
   '@kiosk_back_button_mode',
   '@kiosk_back_button_timer_delay',

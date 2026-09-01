@@ -44,6 +44,7 @@ const KEYS = {
   STATUS_BAR_SHOW_VOLUME: '@kiosk_status_bar_show_volume',
   STATUS_BAR_SHOW_TIME: '@kiosk_status_bar_show_time',
   STATUS_BAR_THEME: '@kiosk_status_bar_theme',
+  TERMINAL_STATUS_ICONS_ENABLED: '@kiosk_terminal_status_icons_enabled',
   EXTERNAL_APP_TEST_MODE: '@kiosk_external_app_test_mode',
   BACK_BUTTON_MODE: '@kiosk_back_button_mode',
   BACK_BUTTON_TIMER_DELAY: '@kiosk_back_button_timer_delay',
@@ -1069,6 +1070,29 @@ export const StorageService = {
       return value === null ? false : JSON.parse(value); // Par défaut false (désactivée)
     } catch (error) {
       console.error('Error getting status bar enabled:', error);
+      return false;
+    }
+  },
+  // COMPACT PLAYER-FACING TERMINAL STATUS ICONS
+  saveTerminalStatusIconsEnabled: async (value: boolean): Promise<void> => {
+    try {
+      await AsyncStorage.setItem(
+        KEYS.TERMINAL_STATUS_ICONS_ENABLED,
+        JSON.stringify(value),
+      );
+    } catch (error) {
+      console.error('Error saving Terminal status icons:', error);
+    }
+  },
+
+  getTerminalStatusIconsEnabled: async (): Promise<boolean> => {
+    try {
+      const value = await AsyncStorage.getItem(
+        KEYS.TERMINAL_STATUS_ICONS_ENABLED,
+      );
+      return value === null ? false : JSON.parse(value);
+    } catch (error) {
+      console.error('Error getting Terminal status icons:', error);
       return false;
     }
   },
